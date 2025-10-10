@@ -40,6 +40,13 @@
     "files.associations": {
         "shiftregister_piso.h": "c",
         "oled.h": "c",
-        "font.h": "c"
+        "font.h": "c",
+        "stdbool.h": "c",
+        "keycodes.h": "c",
+        "usb_descriptors.h": "c",
+        "board.h": "c",
+        "keymap.h": "c",
+        "stdio.h": "c",
+        "tusb.h": "c"
     }
 }

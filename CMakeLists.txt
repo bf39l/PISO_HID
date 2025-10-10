@@ -37,6 +37,9 @@ pico_sdk_init()
 
 add_executable(PISO_HID 
     src/main.c
+    src/task_oled.c
+    src/task_scan.c
+    src/task_usb.c
 )
 
 pico_set_program_name(PISO_HID "PISO_HID")
@@ -47,13 +50,15 @@ pico_enable_stdio_uart(PISO_HID 0)
 pico_enable_stdio_usb(PISO_HID 0)
 
 #### Library PICO_USB_HID
-add_library(TINYUSB
-    lib/tinyusb/usb_descriptors.c
+add_library(CUSTOM_HID
+    lib/CustomHID/usb_descriptors.c
+    lib/CustomHID/keymap.c
+    lib/CustomHID/keymap_helper.c
 )
-target_include_directories(TINYUSB PUBLIC
-    lib/tinyusb
+target_include_directories(CUSTOM_HID PUBLIC
+    ${CMAKE_CURRENT_LIST_DIR}/lib/CustomHID/ # tusb_config.h and etc...
 )
-target_link_libraries(TINYUSB
+target_link_libraries(CUSTOM_HID
     pico_stdlib
     tinyusb_device
 )
@@ -121,7 +126,9 @@ target_include_directories(PISO_HID PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/lib/ShiftRegister-74HC165/ # ShiftRegister-74HC165
         ${CMAKE_CURRENT_LIST_DIR}/lib/OLED_SSD1306/ # ShiftRegister-74HC165
 
-        ${CMAKE_CURRENT_LIST_DIR}/lib/tinyusb/ # tinyusb
+        # ${CMAKE_CURRENT_LIST_DIR}/include/TinyUSB/ # tusb_config.h and etc...
+
+        ${CMAKE_CURRENT_LIST_DIR}/lib/CustomHID/ # Custom HID
 )
 
 # Add any user requested libraries
@@ -132,7 +139,7 @@ target_link_libraries(PISO_HID
     FreeRTOS-Kernel
     ShiftRegister_74HC165
     OLED_SSD1306
-    TINYUSB
+    CUSTOM_HID
 )
 
 pico_add_extra_outputs(PISO_HID)
