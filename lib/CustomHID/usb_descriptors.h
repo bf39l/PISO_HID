@@ -1,5 +1,6 @@
 #pragma once
 #include "tusb.h"
+#include "keymap.h"
 
 // Initialize TinyUSB stack for HID + CDC
 void USB_HID_Init(void);

@@ -54,6 +54,7 @@ add_library(CUSTOM_HID
     lib/CustomHID/usb_descriptors.c
     lib/CustomHID/keymap.c
     lib/CustomHID/keymap_helper.c
+    lib/CustomHID/keymap_storage.c
 )
 target_include_directories(CUSTOM_HID PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/lib/CustomHID/ # tusb_config.h and etc...
@@ -61,6 +62,7 @@ target_include_directories(CUSTOM_HID PUBLIC
 target_link_libraries(CUSTOM_HID
     pico_stdlib
     tinyusb_device
+    hardware_flash
 )
 #####
 

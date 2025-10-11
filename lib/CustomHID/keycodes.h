@@ -72,6 +72,8 @@
 #define KC_DOT    0x37
 #define KC_SLASH  0x38
 #define KC_CAPSLOCK 0x39
+#define KC_CAPS_LOCK KC_CAPSLOCK
+#define KC_CAPS      KC_CAPSLOCK
 
 #define KC_F1  0x3A
 #define KC_F2  0x3B
@@ -147,6 +149,7 @@
 #define DEBUG        (SAFE_RANGE + 0x1001)
 #define KC_BOOTLOADER RESET
 #define KC_DEBUG      DEBUG
+#define KC_NKRO_TOGGLE  (SAFE_RANGE + 0x1002)  // Toggle NKRO mode
 
 // --------------------
 // Utility helpers

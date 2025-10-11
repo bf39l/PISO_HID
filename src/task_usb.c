@@ -39,8 +39,10 @@ void keymap_process_shift_register(const ShiftRegister64 *sr, uint8_t *modifier,
 
 void USB_Task(void *pvParameters)
 {
+    static bool keymap_loaded = false;
     ShiftRegister64 recv;
     uint8_t modifier, keycodes[6];
+    keymap_load_from_flash();
 
     for (;;) {
         tud_task();  // keep TinyUSB alive

@@ -3,7 +3,7 @@
 // ---------------------------
 // Keymaps definition
 // ---------------------------
-const uint16_t keymaps[MAX_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
+uint16_t keymaps[MAX_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
     // --- Layer 0: Base ---
     {
         {

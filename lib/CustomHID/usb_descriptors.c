@@ -102,20 +102,31 @@ uint8_t const* tud_descriptor_device_cb(void) {
 // -----------------------------
 // USB configuration descriptor
 // -----------------------------
+// Interface numbers
+enum {
+    ITF_NUM_CDC = 0,
+    ITF_NUM_CDC_DATA,
+    ITF_NUM_HID_6KRO,
+    ITF_NUM_HID_NKRO,
+    ITF_NUM_HID_MOUSE,
+    ITF_NUM_TOTAL
+};
 
-#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + 3*TUD_HID_DESC_LEN)
+#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN + 3*TUD_HID_DESC_LEN)
 
 uint8_t const desc_configuration[] = {
-    TUD_CONFIG_DESCRIPTOR(1, 3, 0, CONFIG_TOTAL_LEN, 0x00, 100),
+    // Configuration descriptor: 5 interfaces (CDC + 3 HID)
+    TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0x00, 100),
 
-    // Interface 0: 6KRO keyboard
-    TUD_HID_DESCRIPTOR(0, 0, HID_ITF_PROTOCOL_KEYBOARD, sizeof(hid_report_desc_keyboard_6kro), 0x81, CFG_TUD_HID_EP_BUFSIZE, 1),
+    // CDC (Virtual Serial)
+    TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 0, 0x81, 8, 0x02, 0x82, 64),
 
-    // Interface 1: NKRO keyboard
-    TUD_HID_DESCRIPTOR(1, 0, HID_ITF_PROTOCOL_NONE, sizeof(hid_report_desc_keyboard_nkro), 0x82, CFG_TUD_HID_EP_BUFSIZE, 1),
-
-    // Interface 2: Mouse
-    TUD_HID_DESCRIPTOR(2, 0, HID_ITF_PROTOCOL_MOUSE, sizeof(hid_report_desc_mouse), 0x83, CFG_TUD_HID_EP_BUFSIZE, 1),
+    // HID 6KRO keyboard
+    TUD_HID_DESCRIPTOR(ITF_NUM_HID_6KRO, 0, HID_ITF_PROTOCOL_KEYBOARD, sizeof(hid_report_desc_keyboard_6kro), 0x83, CFG_TUD_HID_EP_BUFSIZE, 1),
+    // HID NKRO keyboard
+    TUD_HID_DESCRIPTOR(ITF_NUM_HID_NKRO, 0, HID_ITF_PROTOCOL_NONE, sizeof(hid_report_desc_keyboard_nkro), 0x84, CFG_TUD_HID_EP_BUFSIZE, 1),
+    // HID Mouse
+    TUD_HID_DESCRIPTOR(ITF_NUM_HID_MOUSE, 0, HID_ITF_PROTOCOL_MOUSE, sizeof(hid_report_desc_mouse), 0x85, CFG_TUD_HID_EP_BUFSIZE, 1),
 };
 
 uint8_t const* tud_descriptor_configuration_cb(uint8_t index) {
@@ -157,7 +168,8 @@ uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
 // HID callbacks
 // -----------------------------
 
-uint8_t const * tud_hid_descriptor_report_cb(uint8_t instance) {
+uint8_t const * tud_hid_descriptor_report_cb(uint8_t instance) 
+{
     switch(instance) {
         case 0: return hid_report_desc_keyboard_6kro;
         case 1: return hid_report_desc_keyboard_nkro;
@@ -167,12 +179,17 @@ uint8_t const * tud_hid_descriptor_report_cb(uint8_t instance) {
 }
 
 void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type,
-                           uint8_t const* buffer, uint16_t bufsize) {
-    (void)instance; (void)report_id; (void)report_type; (void)buffer; (void)bufsize;
+                           uint8_t const* buffer, uint16_t bufsize) 
+{
+    char dbg[64];
+    snprintf(dbg, sizeof(dbg), "tud_hid_set_report_cb: instance=%u, report_id=%u, type=%u, len=%u\r\n",
+             instance, report_id, report_type, bufsize);
+    CDC_SendString(dbg);
 }
 
 uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type,
-                               uint8_t* buffer, uint16_t bufsize) {
+                               uint8_t* buffer, uint16_t bufsize) 
+{
     (void)instance; (void)report_id; (void)report_type; (void)buffer; (void)bufsize;
     return 0;
 }
@@ -181,6 +198,7 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 // Initialization
 // -----------------------------
 
-void USB_HID_Init(void) {
+void USB_HID_Init(void) 
+{
     tusb_init();
 }
