@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
+#include "pico/bootrom.h"
 // FreeRTOS
 #include "FreeRTOS.h"
 #include "task.h"

@@ -11,33 +11,43 @@ typedef struct {
     uint8_t keycode[6];
 } keyboard_6kro_report_t;
 
-// NKRO report (16 bytes bitmap)
+// NKRO report
 typedef struct {
-    uint8_t keys[16];
+    uint8_t modifier;   // 8 modifier bits
+    uint8_t keys[29];   // 232 key bits (29 bytes)
 } keyboard_nkro_report_t;
+
+bool nkro_enabled = false;  // global NKRO state shared
 
 // -----------------------------
 // HID report descriptors
 // -----------------------------
 
-// 6KRO keyboard
-uint8_t const hid_report_desc_keyboard_6kro[] = {
-    TUD_HID_REPORT_DESC_KEYBOARD()
-};
+// Composite report descriptor: 6KRO (ID 1) + NKRO (ID 2)
+uint8_t const hid_report_desc_keyboard[] = {
+    // --- 6KRO (Report ID 1) ---
+    TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(1)),
 
-// NKRO keyboard (bitmap 16 bytes)
-uint8_t const hid_report_desc_keyboard_nkro[] = {
-    0x05, 0x01,        // Usage Page (Generic Desktop)
-    0x09, 0x06,        // Usage (Keyboard)
-    0xA1, 0x01,        // Collection (Application)
-    0x85, 0x01,        //   Report ID (1)
-    0x75, 0x01,        //   Report Size (1)
-    0x95, 0x80,        //   Report Count (128 bits / 16 bytes)
-    0x05, 0x07,        //   Usage Page (Keyboard)
-    0x19, 0x00,        //   Usage Minimum
-    0x29, 0x7F,        //   Usage Maximum
-    0x81, 0x02,        //   Input (Data,Var,Abs)
-    0xC0               // End Collection
+    // --- NKRO (Report ID 2) ---
+    0x05, 0x01,       // Usage Page (Generic Desktop)
+    0x09, 0x06,       // Usage (Keyboard)
+    0xA1, 0x01,       // Collection (Application)
+    0x85, 0x02,       //   Report ID (2)
+    // Modifiers (8 bits)
+    0x75, 0x01,       //   Report Size (1)
+    0x95, 0x08,       //   Report Count (8)
+    0x05, 0x07,       //   Usage Page (Keyboard)
+    0x19, 0xE0,       //   Usage Minimum (Left Control)
+    0x29, 0xE7,       //   Usage Maximum (Right GUI)
+    0x81, 0x02,       //   Input (Data,Var,Abs)
+    // Normal keys bitmap (232 bits = 29 bytes)
+    0x75, 0x01,       //   Report Size (1)
+    0x95, 0xE8,       //   Report Count (232)
+    0x05, 0x07,       //   Usage Page (Keyboard)
+    0x19, 0x04,       //   Usage Minimum (0)
+    0x29, 0xE7,       //   Usage Maximum (231)
+    0x81, 0x02,       //   Input (Data,Var,Abs)
+    0xC0              // End Collection
 };
 
 // Mouse (3 buttons + X/Y/Wheel)
@@ -50,16 +60,19 @@ uint8_t const hid_report_desc_mouse[] = {
 // -----------------------------
 
 void HID_SendKeyboard6KRO(uint8_t modifier, uint8_t keycodes[6]) {
-    if (tud_hid_ready()) {
-        keyboard_6kro_report_t report = {modifier, 0, {0}};
-        for (int i = 0; i < 6; i++) report.keycode[i] = keycodes[i];
-        tud_hid_keyboard_report(0, report.modifier, report.keycode);
+    if (tud_hid_n_ready(0)) {
+        uint8_t report[8] = {modifier, 0, keycodes[0], keycodes[1], keycodes[2], keycodes[3], keycodes[4], keycodes[5]};
+        tud_hid_n_report(0, 1, report, 8); // report ID 1
     }
 }
 
-void HID_SendKeyboardNKRO(const uint8_t nkro_bitmap[16]) {
-    if (tud_hid_ready()) {
-        tud_hid_report(1, nkro_bitmap, 16);
+void HID_SendKeyboardNKRO(uint8_t modifier, const uint8_t nkro_bitmap[29]) {
+    if (tud_hid_n_ready(0)) {
+        uint8_t report[30];
+        report[0] = modifier;
+        memcpy(&report[1], nkro_bitmap, 29);
+        tud_hid_n_report(0, 2, report, sizeof(report)); // send Report ID 2
+        CDC_SendString("Sent NKRO (Report ID 2)\r\n");
     }
 }
 
@@ -106,13 +119,12 @@ uint8_t const* tud_descriptor_device_cb(void) {
 enum {
     ITF_NUM_CDC = 0,
     ITF_NUM_CDC_DATA,
-    ITF_NUM_HID_6KRO,
-    ITF_NUM_HID_NKRO,
+    ITF_NUM_HID_KEYBOARD,
     ITF_NUM_HID_MOUSE,
     ITF_NUM_TOTAL
 };
 
-#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN + 3*TUD_HID_DESC_LEN)
+#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN + 2*TUD_HID_DESC_LEN)
 
 uint8_t const desc_configuration[] = {
     // Configuration descriptor: 5 interfaces (CDC + 3 HID)
@@ -121,10 +133,8 @@ uint8_t const desc_configuration[] = {
     // CDC (Virtual Serial)
     TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 0, 0x81, 8, 0x02, 0x82, 64),
 
-    // HID 6KRO keyboard
-    TUD_HID_DESCRIPTOR(ITF_NUM_HID_6KRO, 0, HID_ITF_PROTOCOL_KEYBOARD, sizeof(hid_report_desc_keyboard_6kro), 0x83, CFG_TUD_HID_EP_BUFSIZE, 1),
-    // HID NKRO keyboard
-    TUD_HID_DESCRIPTOR(ITF_NUM_HID_NKRO, 0, HID_ITF_PROTOCOL_NONE, sizeof(hid_report_desc_keyboard_nkro), 0x84, CFG_TUD_HID_EP_BUFSIZE, 1),
+    // HID keyboard
+    TUD_HID_DESCRIPTOR(ITF_NUM_HID_KEYBOARD, 0, HID_ITF_PROTOCOL_KEYBOARD, sizeof(hid_report_desc_keyboard), 0x83, CFG_TUD_HID_EP_BUFSIZE, 1),
     // HID Mouse
     TUD_HID_DESCRIPTOR(ITF_NUM_HID_MOUSE, 0, HID_ITF_PROTOCOL_MOUSE, sizeof(hid_report_desc_mouse), 0x85, CFG_TUD_HID_EP_BUFSIZE, 1),
 };
@@ -171,9 +181,8 @@ uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
 uint8_t const * tud_hid_descriptor_report_cb(uint8_t instance) 
 {
     switch(instance) {
-        case 0: return hid_report_desc_keyboard_6kro;
-        case 1: return hid_report_desc_keyboard_nkro;
-        case 2: return hid_report_desc_mouse;
+        case 0: return hid_report_desc_keyboard;
+        case 1: return hid_report_desc_mouse;
         default: return NULL;
     }
 }
@@ -181,17 +190,40 @@ uint8_t const * tud_hid_descriptor_report_cb(uint8_t instance)
 void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type,
                            uint8_t const* buffer, uint16_t bufsize) 
 {
-    char dbg[64];
-    snprintf(dbg, sizeof(dbg), "tud_hid_set_report_cb: instance=%u, report_id=%u, type=%u, len=%u\r\n",
-             instance, report_id, report_type, bufsize);
-    CDC_SendString(dbg);
+    // intentionally left empty; not handling host-to-device reports
+    (void) instance;
+    (void) report_id;
+    (void) report_type;
+    (void) buffer;
+    (void) bufsize;
+    // char dbg[64];
+    // snprintf(dbg, sizeof(dbg), "tud_hid_set_report_cb: instance=%u, report_id=%u, type=%u, len=%u\r\n",
+    //          instance, report_id, report_type, bufsize);
+    // CDC_SendString(dbg);
 }
 
 uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type,
                                uint8_t* buffer, uint16_t bufsize) 
 {
-    (void)instance; (void)report_id; (void)report_type; (void)buffer; (void)bufsize;
-    return 0;
+    (void) report_type;
+
+    // Only instance 0 is keyboard
+    if (instance != 0) return 0;
+
+    // Suppress the inactive report to avoid ghost events
+    if (nkro_enabled && report_id == 1) {
+        // host asked for 6KRO but we're in NKRO mode → return zeroed report
+        memset(buffer, 0, bufsize);
+        return bufsize;
+    } 
+    else if (!nkro_enabled && report_id == 2) {
+        // host asked for NKRO but we're in 6KRO mode → return zeroed report
+        memset(buffer, 0, bufsize);
+        return bufsize;
+    }
+
+    // Optional: handle host-requested actual report if you want
+    return 0; // default: TinyUSB handles normally
 }
 
 // -----------------------------
