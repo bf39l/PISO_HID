@@ -2,7 +2,8 @@
 
 // Queues visible to all tasks
 QueueHandle_t xShiftRegisterOutputQueue_OLED;
-QueueHandle_t xShiftRegisterOutputQueue_USB;
+// QueueHandle_t xShiftRegisterOutputQueue_USB;
+QueueHandle_t xKeyEventQueue;
 
 void KeyPressScan_Task(void *pvParameters);
 void USB_Task(void *pvParameters);
@@ -20,8 +21,9 @@ int main(void)
     board_init();
     USB_HID_Init();
 
-    xShiftRegisterOutputQueue_OLED = xQueueCreate(10, sizeof(ShiftRegister64));
-    xShiftRegisterOutputQueue_USB  = xQueueCreate(10, sizeof(ShiftRegister64));
+    xShiftRegisterOutputQueue_OLED = xQueueCreate(30, sizeof(ShiftRegister64));
+    // xShiftRegisterOutputQueue_USB  = xQueueCreate(10, sizeof(ShiftRegister64));
+    xKeyEventQueue = xQueueCreate(30, sizeof(KeyEvent));
 
     xTaskCreate(KeyPressScan_Task, "Scan", 256, NULL, 3, NULL);
     xTaskCreate(USB_Task, "USB", 256, NULL, 2, NULL);

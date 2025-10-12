@@ -16,6 +16,7 @@ void HID_SendMouse(int8_t x, int8_t y, int8_t wheel, uint8_t buttons);
 
 // CDC helper
 int CDC_SendString(const char* str);
+void CDC_Log(const char* fmt, ...);
 
 // Callbacks
 uint8_t const * tud_hid_descriptor_report_cb(uint8_t instance);
