@@ -72,7 +72,7 @@ void HID_SendKeyboardNKRO(uint8_t modifier, const uint8_t nkro_bitmap[29]) {
         report[0] = modifier;
         memcpy(&report[1], nkro_bitmap, 29);
         tud_hid_n_report(0, 2, report, sizeof(report)); // send Report ID 2
-        CDC_SendString("Sent NKRO (Report ID 2)\r\n");
+        // CDC_SendString("Sent NKRO (Report ID 2)\r\n");
     }
 }
 
