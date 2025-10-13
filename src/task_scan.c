@@ -19,6 +19,7 @@ void KeyPressScan_Task(void *pvParameters)
         current = read_shift_registers();
 
         uint64_t curr_combined = ((uint64_t)current.high << 32) | current.low;
+        bool any_changed = false;
 
         for (int col = 0; col < 64; ++col) {
             bool raw = (curr_combined & (1ULL << (63 - col))) != 0;
@@ -34,6 +35,7 @@ void KeyPressScan_Task(void *pvParameters)
             if (k->count >= DEBOUNCE && raw != k->state) {
                 // stable change detected
                 k->state = raw;
+                any_changed = true;
                 KeyEvent ev = {
                     .row = 0,
                     .col = col,
@@ -43,8 +45,19 @@ void KeyPressScan_Task(void *pvParameters)
             }
         }
 
-        // send snapshot to OLED (optional)
-        xQueueSend(xShiftRegisterOutputQueue_OLED, &current, 0);
+        // send snapshot to OLED only when a debounced change occurred
+        if (any_changed) {
+            uint64_t stable_combined = 0;
+            for (int col = 0; col < 64; ++col) {
+                if (keys[col].state) {
+                    stable_combined |= (1ULL << (63 - col));
+                }
+            }
+            ShiftRegister64 stable;
+            stable.low = (uint32_t)(stable_combined & 0xFFFFFFFFu);
+            stable.high = (uint32_t)(stable_combined >> 32);
+            xQueueSend(xShiftRegisterOutputQueue_OLED, &stable, 0);
+        }
 
         vTaskDelay(pdMS_TO_TICKS(5));
     }

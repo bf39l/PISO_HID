@@ -49,6 +49,8 @@
         "tusb.h": "c",
         "bootrom.h": "c",
         "string.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "system_error": "c",
+        "regex": "c"
     }
 }

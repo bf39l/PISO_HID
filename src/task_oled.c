@@ -12,22 +12,125 @@ static void draw_shift_bits_oled(ShiftRegister64 bits, const ASCIIFont *font) {
     OLED_PrintASCIIString(14 * font->w+1, 28, "PISO", &afont8x6, OLED_COLOR_NORMAL);
 }
 
-void OLED_Task(void *pvParameters)
-{
-    OLED_Init(i2c0, 2);
+// Draw splash screen
+static void draw_splash(void) {
     OLED_NewFrame();
     OLED_DrawEllipse(128/2-1, 64/2, 32, 18, OLED_COLOR_NORMAL);
     OLED_DrawEllipse(128/2-1, 64/2, 16, 30, OLED_COLOR_NORMAL);
     OLED_PrintASCIIString(128/2 - 4 * afont24x12.w / 2, 64/2 - afont24x12.h/2, "PISO", &afont24x12, OLED_COLOR_NORMAL);
     OLED_PrintASCIIString(128-5*afont8x6.w, 64 - afont8x6.h, "bf39L", &afont8x6, OLED_COLOR_NORMAL);
     OLED_ShowFrame();
+}
+
+// --------------- Cute idle animation: emoji kiss with floating heart ---------------
+static void draw_heart(uint8_t cx, uint8_t cy, uint8_t s)
+{
+    if (s < 3) s = 3; // minimum size
+    uint8_t r = (uint8_t)(s / 3 + (s % 3 != 0));
+    int8_t off = (int8_t)(s / 2);
+    // lobes
+    if (cx > off && cy > r) {
+        OLED_DrawFilledCircle((uint8_t)(cx - off), (uint8_t)(cy - r), r, OLED_COLOR_NORMAL);
+    }
+    if ((int)cx + off < 128 && cy > r) {
+        OLED_DrawFilledCircle((uint8_t)(cx + off), (uint8_t)(cy - r), r, OLED_COLOR_NORMAL);
+    }
+    // Safe bottom fill using horizontal scanlines (avoid triangle divide-by-zero)
+    for (int y = 0; y <= s; ++y) {
+        int ypix = (int)cy + y;
+        if (ypix < 0 || ypix >= 64) continue;
+        int half = s - y; // taper
+        int x1 = (int)cx - half;
+        int x2 = (int)cx + half;
+        if (x2 < 0 || x1 > 127) continue;
+        if (x1 < 0) x1 = 0;
+        if (x2 > 127) x2 = 127;
+        OLED_DrawLine((uint8_t)x1, (uint8_t)ypix, (uint8_t)x2, (uint8_t)ypix, OLED_COLOR_NORMAL);
+    }
+}
+
+static void draw_cute_kiss_anim(uint32_t frame)
+{
+    OLED_NewFrame();
+
+    // Small PISO logo at top-left during idle
+    OLED_PrintASCIIString(1, 1, "PISO", &afont8x6, OLED_COLOR_NORMAL);
+
+    // Face
+    uint8_t fx = 64, fy = 28, fr = 14;
+    OLED_DrawCircle(fx, fy, fr, OLED_COLOR_NORMAL);
+
+    // Eyes (left open, right wink toggles)
+    bool wink = ((frame / 10) % 8) < 3; // wink for ~3 ticks out of 8
+    // Left eye
+    OLED_DrawFilledCircle((uint8_t)(fx - 6), (uint8_t)(fy - 4), 1, OLED_COLOR_NORMAL);
+    // Right eye
+    if (wink) {
+        OLED_DrawLine((uint8_t)(fx + 5 - 2), (uint8_t)(fy - 4), (uint8_t)(fx + 5 + 2), (uint8_t)(fy - 4), OLED_COLOR_NORMAL);
+    } else {
+        OLED_DrawFilledCircle((uint8_t)(fx + 6), (uint8_t)(fy - 4), 1, OLED_COLOR_NORMAL);
+    }
+
+    // Cheeks
+    // OLED_DrawFilledCircle((uint8_t)(fx - 8), (uint8_t)(fy + 2), 1, OLED_COLOR_NORMAL);
+    // OLED_DrawFilledCircle((uint8_t)(fx + 8), (uint8_t)(fy + 2), 1, OLED_COLOR_NORMAL);
+
+    // Puckering mouth: small pulsating dot near the right side
+    int p = frame % 40;
+    int puck = (p < 20) ? p : (40 - p); // 0..20..0
+    uint8_t mr = (uint8_t)(1 + puck / 10); // 1..3..1
+    uint8_t mx = (uint8_t)(fx + fr - 3);
+    uint8_t my = (uint8_t)(fy + 2);
+    OLED_DrawFilledCircle(mx, my, mr, OLED_COLOR_NORMAL);
+
+    // Floating heart starting near mouth and drifting up-right
+    int ht = frame % 60;
+    uint8_t hx = (uint8_t)(mx + 3 + ht / 2);
+    uint8_t hy = (uint8_t)(my - 2 - ht / 2);
+    uint8_t hs = (uint8_t)(5 + ((frame / 8) % 2)); // slight pulse 5..6
+    draw_heart(hx, hy, hs);
+
+    // Footer signature at bottom-right
+    OLED_PrintASCIIString(128-5*afont8x6.w, 64 - afont8x6.h, "bf39L", &afont8x6, OLED_COLOR_NORMAL);
+
+    OLED_ShowFrame();
+}
+
+void OLED_Task(void *pvParameters)
+{
+    OLED_Init(i2c0, 2);
+
+    // Show splash initially
+    draw_splash();
 
     ShiftRegister64 recv;
-    while (1) {
-        if (xQueueReceive(xShiftRegisterOutputQueue_OLED, &recv, portMAX_DELAY)) {
-            OLED_NewFrame();
-            draw_shift_bits_oled(recv, &afont8x6);
-            OLED_ShowFrame();
+    uint32_t anim_frame = 0;
+    bool in_idle_anim = false;
+
+    for (;;) {
+        if (!in_idle_anim) {
+            // Wait up to 5 seconds for a debounced change snapshot
+            if (xQueueReceive(xShiftRegisterOutputQueue_OLED, &recv, pdMS_TO_TICKS(10000)) == pdTRUE) {
+                OLED_NewFrame();
+                draw_shift_bits_oled(recv, &afont8x6);
+                OLED_ShowFrame();
+            } else {
+                // Enter idle animation
+                in_idle_anim = true;
+                anim_frame = 0;
+            }
+        } else {
+            // Run one animation frame
+            draw_cute_kiss_anim(anim_frame++);
+            // Check quickly if a new snapshot arrived; if so, exit idle mode
+            if (xQueueReceive(xShiftRegisterOutputQueue_OLED, &recv, 0) == pdTRUE) {
+                OLED_NewFrame();
+                draw_shift_bits_oled(recv, &afont8x6);
+                OLED_ShowFrame();
+                in_idle_anim = false;
+                continue;
+            }
+            vTaskDelay(pdMS_TO_TICKS(50));
         }
     }
 }
