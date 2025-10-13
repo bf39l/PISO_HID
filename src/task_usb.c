@@ -13,6 +13,8 @@ void USB_Task(void *pvParameters)
     
     for (;;) {
         tud_task();
+        // run MT tick so holds fire even without events
+        keymap_mt_tick();
         
         // --- Process key events from queue ---
         while (xQueueReceive(xKeyEventQueue, &ev, 0) == pdPASS) {
@@ -27,11 +29,10 @@ void USB_Task(void *pvParameters)
             }
             
             // Debug log
-            char buf[64];
+            char buf[128];
+            uint32_t raw_kc = keymaps[keymap_get_active_layer()][ev.row][ev.col];
             snprintf(buf, sizeof(buf), "%s row=%d col=%d kc=0x%08X mods=0x%02X\n",
-                     ev.pressed ? "Press" : "Release", ev.row, ev.col, 
-                     report.keycount > 0 ? report.keycodes[0] : 0, 
-                     report.modifiers);
+                     ev.pressed ? "Press" : "Release", ev.row, ev.col, raw_kc, report.modifiers);
             CDC_SendString(buf);
         }
         
@@ -52,17 +53,17 @@ void USB_Task(void *pvParameters)
             if (memcmp(cur_nkro, prev_nkro, NKRO_REPORT_LEN) != 0) {
                 if (tud_hid_n_ready(0)) {
                     tud_hid_n_report(0, 2, cur_nkro, NKRO_REPORT_LEN);
-                    CDC_SendString("Sent NKRO report\n");
+                    // Update prev only after successful send
+                    memcpy(prev_nkro, cur_nkro, NKRO_REPORT_LEN);
                 }
-                memcpy(prev_nkro, cur_nkro, NKRO_REPORT_LEN);
             }
         } else {
             if (memcmp(cur6, prev6, sizeof(cur6)) != 0) {
                 if (tud_hid_n_ready(0)) {
                     tud_hid_n_report(0, 1, cur6, sizeof(cur6));
-                    CDC_SendString("Sent 6KRO report\n");
+                    // Update prev only after successful send
+                    memcpy(prev6, cur6, sizeof(cur6));
                 }
-                memcpy(prev6, cur6, sizeof(cur6));
             }
         }
         
