@@ -236,9 +236,6 @@ extern bool nkro_enabled;
 // Keymap storage
 extern uint32_t keymaps[MAX_LAYERS][MATRIX_ROWS][MATRIX_COLS];
 
-// Initialize layer manager
-void layer_manager_init(void);
-
 // Get current keycode (handles MO/TG/TO internally)
 KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed);
 
@@ -250,8 +247,6 @@ void keymap_process_special_keys(uint32_t kc);
 
 // Get active layer (for debugging or other purposes)
 uint8_t keymap_get_active_layer(void);
-
-uint8_t keymap_resolve_layer(uint8_t row, uint8_t col);
 
 // Save/load keymap to flash
 void keymap_save_to_flash(void);
