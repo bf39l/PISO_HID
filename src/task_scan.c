@@ -35,13 +35,13 @@ void KeyPressScan_Task(void *pvParameters)
             if (k->count >= DEBOUNCE && raw != k->state) {
                 // stable change detected
                 k->state = raw;
-                any_changed = true;
                 KeyEvent ev = {
                     .row = 0,
                     .col = col,
                     .pressed = raw
                 };
                 xQueueSend(xKeyEventQueue, &ev, 0);
+                any_changed = true;
             }
         }
 

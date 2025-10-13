@@ -221,6 +221,10 @@
 #define NKRO_BYTES_TOTAL ((NKRO_BITS_TOTAL + 7) / 8)
 #define NKRO_REPORT_LEN (1 + NKRO_BYTES_TOTAL)
 #define MAX_KEYS_PER_REPORT 12  // Support up to 12 keys per press
+// 6KRO definitions
+#define SIXKRO_BYTES_TOTAL 6
+#define SIXKRO_REPORT_LEN (2 + SIXKRO_BYTES_TOTAL) // <modifier><0><6 x keycode>
+
 
 // Key Report structure to handle multiple keycodes and modifiers
 typedef struct {
@@ -236,8 +240,11 @@ extern bool nkro_enabled;
 // Keymap storage
 extern uint32_t keymaps[MAX_LAYERS][MATRIX_ROWS][MATRIX_COLS];
 
+void keymap_init(void);
 // Get current keycode (handles MO/TG/TO internally)
 KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed);
+void keymap_process_queue_item(uint8_t row, uint8_t col, bool pressed);
+void keymap_send_hid_report();
 
 // Build HID reports from keys
 void keymap_build_hid_reports(uint8_t *modifier_out, uint8_t keycodes6[6], uint8_t nkro_bitmap[NKRO_BYTES_TOTAL]);

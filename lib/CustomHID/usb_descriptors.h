@@ -10,9 +10,9 @@ void USB_HID_Init(void);
 
 
 // Send reports
-void HID_SendKeyboard6KRO(uint8_t modifier, uint8_t keycodes[6]);
-void HID_SendKeyboardNKRO(uint8_t modifier, const uint8_t nkro_bitmap[29]);
-void HID_SendMouse(int8_t x, int8_t y, int8_t wheel, uint8_t buttons);
+bool HID_SendKeyboard6KRO(uint8_t modifier, uint8_t keycodes[6]);
+bool HID_SendKeyboardNKRO(uint8_t modifier, const uint8_t nkro_bitmap[29]);
+bool HID_SendMouse(int8_t x, int8_t y, int8_t wheel, uint8_t buttons);
 
 // CDC helper
 int CDC_SendString(const char* str);

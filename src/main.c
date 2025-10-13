@@ -21,9 +21,9 @@ int main(void)
     board_init();
     USB_HID_Init();
 
-    xShiftRegisterOutputQueue_OLED = xQueueCreate(30, sizeof(ShiftRegister64));
+    xShiftRegisterOutputQueue_OLED = xQueueCreate(256, sizeof(ShiftRegister64));
     // xShiftRegisterOutputQueue_USB  = xQueueCreate(10, sizeof(ShiftRegister64));
-    xKeyEventQueue = xQueueCreate(30, sizeof(KeyEvent));
+    xKeyEventQueue = xQueueCreate(256, sizeof(KeyEvent));
 
     xTaskCreate(KeyPressScan_Task, "Scan", 256, NULL, 3, NULL);
     xTaskCreate(USB_Task, "USB", 256, NULL, 2, NULL);
