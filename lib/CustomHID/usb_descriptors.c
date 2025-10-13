@@ -59,27 +59,34 @@ uint8_t const hid_report_desc_mouse[] = {
 // HID send helpers
 // -----------------------------
 
-void HID_SendKeyboard6KRO(uint8_t modifier, uint8_t keycodes[6]) {
+bool HID_SendKeyboard6KRO(uint8_t modifier, uint8_t keycodes[6]) {
     if (tud_hid_n_ready(0)) {
         uint8_t report[8] = {modifier, 0, keycodes[0], keycodes[1], keycodes[2], keycodes[3], keycodes[4], keycodes[5]};
         tud_hid_n_report(0, 1, report, 8); // report ID 1
+        CDC_SendString("Sent 6KRO\r\n");
+        return true;
     }
+    return false;
 }
 
-void HID_SendKeyboardNKRO(uint8_t modifier, const uint8_t nkro_bitmap[29]) {
+bool HID_SendKeyboardNKRO(uint8_t modifier, const uint8_t nkro_bitmap[NKRO_BYTES_TOTAL]) {
     if (tud_hid_n_ready(0)) {
-        uint8_t report[30];
+        uint8_t report[NKRO_REPORT_LEN];
         report[0] = modifier;
-        memcpy(&report[1], nkro_bitmap, 29);
+        memcpy(&report[1], nkro_bitmap, NKRO_BYTES_TOTAL);
         tud_hid_n_report(0, 2, report, sizeof(report)); // send Report ID 2
-        // CDC_SendString("Sent NKRO (Report ID 2)\r\n");
+        CDC_SendString("Sent NKRO\r\n");
+        return true;
     }
+    return false;
 }
 
-void HID_SendMouse(int8_t x, int8_t y, int8_t wheel, uint8_t buttons) {
+bool HID_SendMouse(int8_t x, int8_t y, int8_t wheel, uint8_t buttons) {
     if (tud_hid_ready()) {
         tud_hid_mouse_report(2, buttons, x, y, wheel, 0);
+        return true;
     }
+    return false;
 }
 
 int CDC_SendString(const char* str) {
