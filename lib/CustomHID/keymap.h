@@ -259,3 +259,6 @@ void keymap_load_from_flash(void);
 
 // MT periodic tick to process hold detection while key is held
 void keymap_mt_tick(void);
+
+// Called after a HID report is successfully sent to clear one-shot taps
+void keymap_on_report_sent(void);

@@ -77,20 +77,27 @@ static int find_in_stack(uint8_t row, uint8_t col)
 }
 
 // ---------------------------
-// Debug: Print layer stack
+// Debug: Print layer stack (very safe, chunked)
 // ---------------------------
 static void print_layer_stack(void)
 {
-    char buf[128];
-    int pos = snprintf(buf, sizeof(buf), "Stack [%d]: [", layer_state.size);
-    for (int i = 0; i < layer_state.size && pos < 110; i++) {
-        pos += snprintf(buf + pos, sizeof(buf) - pos, "%d%s%s", 
-                       layer_state.stack[i].activated_layer,
-                       layer_state.stack[i].type == LAYER_TYPE_TG ? "T" : "M",
-                       (i < layer_state.size - 1) ? ", " : "");
+    char hdr[32];
+    int w = snprintf(hdr, sizeof(hdr), "Stack [%u]: [", (unsigned)layer_state.size);
+    if (w < 0) return;
+    hdr[sizeof(hdr)-1] = '\0';
+    CDC_SendString(hdr);
+
+    for (int i = 0; i < layer_state.size; i++) {
+        char ent[16];
+        const char *type = (layer_state.stack[i].type == LAYER_TYPE_TG) ? "T" : "M";
+        const char *sep = (i < layer_state.size - 1) ? ", " : "";
+        w = snprintf(ent, sizeof(ent), "%u%s%s", (unsigned)layer_state.stack[i].activated_layer, type, sep);
+        if (w < 0) break;
+        ent[sizeof(ent)-1] = '\0';
+        CDC_SendString(ent);
     }
-    snprintf(buf + pos, sizeof(buf) - pos, "]\n");
-    CDC_SendString(buf);
+
+    CDC_SendString("]\n");
 }
 
 // ---------------------------
@@ -194,6 +201,10 @@ static void mt_tick_timeout(void){
                     layer_state.stack[layer_state.size].col = mt_slots[i].col;
                     layer_state.stack[layer_state.size].type = LAYER_TYPE_MO;
                     layer_state.size++;
+                    // Log MT layer activation
+                    char buf[32];
+                    snprintf(buf, sizeof(buf), "MTL(%u) ON\n", (unsigned)layer);
+                    CDC_SendString(buf);
                 }
             }
             mt_slots[i].hold_sent = true;
@@ -237,9 +248,12 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
         }
         if (!pressed && to_pressed[row][col]) {
             to_pressed[row][col] = false;
-            layer_state.base_layer = kc - TO(0);
+            uint8_t target = (uint8_t)(kc - TO(0));
+            layer_state.base_layer = target;
             layer_state.size = 0;  // Clear entire stack
-            CDC_SendString("TO\n");
+            char buf[32];
+            snprintf(buf, sizeof(buf), "TO(%u)\n", (unsigned)target);
+            CDC_SendString(buf);
             print_layer_stack();
         }
         return report; // Empty report
@@ -352,8 +366,13 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
                     } else if (mt_type == MT_TYPE_LAYER){
                         int si = find_in_stack(row,col);
                         if (si>=0){
+                            uint8_t released = layer_state.stack[si].activated_layer;
                             for (int i=si;i<layer_state.size-1;i++) layer_state.stack[i]=layer_state.stack[i+1];
                             layer_state.size--;
+                            // Log MT layer deactivation
+                            char buf[32];
+                            snprintf(buf, sizeof(buf), "MTL(%u) OFF\n", (unsigned)released);
+                            CDC_SendString(buf);
                         }
                     }
                 }
@@ -389,7 +408,7 @@ void keymap_build_hid_reports(uint8_t *modifier_out, uint8_t keycodes6[6], uint8
         bool active = key_state[c].pressed || oneshot_tap[c];
         if (!active) continue; 
         uint32_t kc = key_state[c].cached_kc; 
-        if (kc==KC_NO||kc==KC_TRNS){ oneshot_tap[c]=false; key_state[c].cached_kc = KC_NO; continue; }
+        if (kc==KC_NO||kc==KC_TRNS){ /* keep oneshot until send */ continue; }
         // modifiers
         if ((kc & 0xFF00u) == 0xF000u){ // combined mods marker (from MT hold)
             *modifier_out |= (uint8_t)(kc & 0xFFu);
@@ -400,8 +419,7 @@ void keymap_build_hid_reports(uint8_t *modifier_out, uint8_t keycodes6[6], uint8
         if (kc<0xE0 && k6<6) keycodes6[k6++]=(uint8_t)kc;
         // NKRO
         if (kc>=NKRO_USAGE_MIN && kc<=NKRO_USAGE_MAX){ uint16_t bi=kc-NKRO_USAGE_MIN; nkro_bitmap[bi/8]|=(1u<<(bi%8)); }
-        // clear oneshot after including and reset cache to force release frame next tick
-        if (oneshot_tap[c]){ oneshot_tap[c]=false; key_state[c].cached_kc = KC_NO; }
+        // Do NOT clear oneshot here; wait until report is successfully sent
     }
 }
 
@@ -411,4 +429,14 @@ uint8_t keymap_get_sticky_layer(uint8_t col) { return 0; }
 // Expose MT periodic tick
 void keymap_mt_tick(void){
     mt_tick_timeout();
+}
+
+// Clear one-shot taps after a successful HID report send
+void keymap_on_report_sent(void){
+    for (int c=0;c<MATRIX_COLS;c++){
+        if (oneshot_tap[c]){
+            oneshot_tap[c] = false;
+            key_state[c].cached_kc = KC_NO; // ensure next frame is release/idle
+        }
+    }
 }

@@ -7,9 +7,15 @@
 void USB_Task(void *pvParameters)
 {
     uint8_t modifier, keycodes6[6], nkro_bitmap[NKRO_BYTES_TOTAL];
-    uint8_t prev6[8] = {0}, cur6[8];
-    uint8_t prev_nkro[NKRO_REPORT_LEN] = {0}, cur_nkro[NKRO_REPORT_LEN];
+    uint8_t prev6[8];
+    uint8_t cur6[8];
+    uint8_t prev_nkro[NKRO_REPORT_LEN];
+    uint8_t cur_nkro[NKRO_REPORT_LEN];
     KeyEvent ev;
+
+    // Force first frame to send by initializing prev to different values
+    memset(prev6, 0xFF, sizeof(prev6));
+    memset(prev_nkro, 0xFF, sizeof(prev_nkro));
     
     for (;;) {
         tud_task();
@@ -53,16 +59,16 @@ void USB_Task(void *pvParameters)
             if (memcmp(cur_nkro, prev_nkro, NKRO_REPORT_LEN) != 0) {
                 if (tud_hid_n_ready(0)) {
                     tud_hid_n_report(0, 2, cur_nkro, NKRO_REPORT_LEN);
-                    // Update prev only after successful send
                     memcpy(prev_nkro, cur_nkro, NKRO_REPORT_LEN);
+                    keymap_on_report_sent();
                 }
             }
         } else {
             if (memcmp(cur6, prev6, sizeof(cur6)) != 0) {
                 if (tud_hid_n_ready(0)) {
                     tud_hid_n_report(0, 1, cur6, sizeof(cur6));
-                    // Update prev only after successful send
                     memcpy(prev6, cur6, sizeof(cur6));
+                    keymap_on_report_sent();
                 }
             }
         }
