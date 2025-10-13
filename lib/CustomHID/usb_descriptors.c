@@ -83,8 +83,25 @@ void HID_SendMouse(int8_t x, int8_t y, int8_t wheel, uint8_t buttons) {
 }
 
 int CDC_SendString(const char* str) {
-    if (tud_cdc_connected()) return tud_cdc_write_str(str);
+    if (tud_cdc_connected()) {
+        int ret = tud_cdc_write_str(str);
+        tud_cdc_write_flush();
+        return ret;
+    }
     return 0;
+}
+
+
+static char _cdc_log_buf[128]; // temporary buffer for log messages
+
+void CDC_Log(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    int n = vsnprintf(_cdc_log_buf, sizeof(_cdc_log_buf), fmt, args);
+    va_end(args);
+    if (n > 0) {
+        CDC_SendString(_cdc_log_buf);
+    }
 }
 
 // -----------------------------

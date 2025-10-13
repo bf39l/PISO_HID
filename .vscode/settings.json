@@ -48,6 +48,7 @@
         "keymap.h": "c",
         "stdio.h": "c",
         "tusb.h": "c",
-        "bootrom.h": "c"
+        "bootrom.h": "c",
+        "string.h": "c"
     }
 }

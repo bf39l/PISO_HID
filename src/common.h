@@ -20,8 +20,16 @@
 // OLED
 #include "oled.h"
 
-extern QueueHandle_t xShiftRegisterOutputQueue_OLED;
-extern QueueHandle_t xShiftRegisterOutputQueue_USB;
 #define I2C_PORT i2c0
 #define I2C_SDA 20
 #define I2C_SCL 21
+
+typedef struct {
+    uint8_t row;      // optional, always 0 for now if 1-row keyboard
+    uint8_t col;      // which column (0–63)
+    bool pressed;     // true = pressed, false = released
+} KeyEvent;
+
+extern QueueHandle_t xShiftRegisterOutputQueue_OLED;
+// extern QueueHandle_t xShiftRegisterOutputQueue_USB;
+extern QueueHandle_t xKeyEventQueue;
