@@ -134,25 +134,27 @@
 // --------------------
 // QMK Layer & Function Macros
 // --------------------
-#define SAFE_RANGE 0x5F00  // Start of non-HID keycodes (safe custom range)
+#define SAFE_RANGE 0x10000  // Start of non-HID keycodes (safe custom range, using upper 16 bits)
 
 // Layer handling
-#define MO(layer)      (SAFE_RANGE + 0x0100 + (layer))  // Momentary layer switch
-#define TG(layer)      (SAFE_RANGE + 0x0200 + (layer))  // Toggle layer
-#define TO(layer)      (SAFE_RANGE + 0x0300 + (layer))  // Jump to layer
-#define DF(layer)      (SAFE_RANGE + 0x0400 + (layer))  // Set default layer
-#define TT(layer)      (SAFE_RANGE + 0x0500 + (layer))  // Tap-Toggle layer
-#define LT(layer, kc)  (SAFE_RANGE + 0x0600 + ((layer) << 8) + (kc)) // Layer Tap
+#define MO(layer)      (SAFE_RANGE + 0x01000 + (layer))  // Momentary layer switch
+#define TG(layer)      (SAFE_RANGE + 0x02000 + (layer))  // Toggle layer
+#define TO(layer)      (SAFE_RANGE + 0x03000 + (layer))  // Jump to layer
+#define DF(layer)      (SAFE_RANGE + 0x04000 + (layer))  // Set default layer
+#define TT(layer)      (SAFE_RANGE + 0x05000 + (layer))  // Tap-Toggle layer
+#define LT(layer, kc)  (SAFE_RANGE + 0x06000 + ((layer) << 8) + (kc)) // Layer Tap
 
 // Function control (QMK-style)
-#define RESET        (SAFE_RANGE + 0x1000)
-#define DEBUG        (SAFE_RANGE + 0x1001)
+#define RESET        (SAFE_RANGE + 0x10000)
+#define DEBUG        (SAFE_RANGE + 0x10001)
 #define KC_BOOTLOADER RESET
 #define KC_DEBUG      DEBUG
-#define KC_NKRO_TOGGLE  (SAFE_RANGE + 0x1002)  // Toggle NKRO mode
+#define KC_NKRO_TOGGLE  (SAFE_RANGE + 0x10002)  // Toggle NKRO mode
 
 // --------------------
 // Utility helpers
 // --------------------
 #define IS_QMK_KEYCODE(code) ((code) >= SAFE_RANGE)
 #define IS_MODIFIER(code)    ((code) >= 0xE0 && (code) <= 0xE7)
+#define IS_BOOTLOADER_KEY(code) ((code) == KC_BOOTLOADER)
+#define IS_NKRO_TOGGLE(code) ((code) == KC_NKRO_TOGGLE)
