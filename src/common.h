@@ -14,8 +14,7 @@
 #include "usb_descriptors.h"
 // Shift Register
 #include "ShiftRegister_PISO.h"
-// Keycodes
-#include "keycodes.h"
+// Keycodes now in keymap.h
 #include "keymap.h"
 // OLED
 #include "oled.h"

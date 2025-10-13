@@ -42,13 +42,13 @@
         "oled.h": "c",
         "font.h": "c",
         "stdbool.h": "c",
-        "keycodes.h": "c",
         "usb_descriptors.h": "c",
         "board.h": "c",
         "keymap.h": "c",
         "stdio.h": "c",
         "tusb.h": "c",
         "bootrom.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "stdint.h": "c"
     }
 }
