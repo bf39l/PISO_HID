@@ -55,6 +55,16 @@ bool HID_SendKeyboard6KRO(uint8_t modifier, uint8_t keycodes[6]);
 bool HID_SendKeyboardNKRO(uint8_t modifier, const uint8_t nkro_bitmap[NKRO_BYTES_TOTAL]);
 bool HID_SendMouse(int8_t x, int8_t y, int8_t wheel, uint8_t buttons);
 
+// -----------------------------
+// Initialization
+// -----------------------------
+
+void USB_HID_Init(void) 
+{
+    tusb_init();
+    keymap_init();
+}
+
 void keymap_init(void)
 {
     // Initialize HID report buffers
@@ -518,45 +528,6 @@ void keymap_process_queue_item(uint8_t row, uint8_t col, bool pressed)
     CDC_SendString(buf);
 }
 
-void keymap_send_hid_report()
-{
-    // --- Build HID reports ---
-    keymap_build_hid_reports(&modifier, keycodes6, nkro_bitmap);
-
-    // Send reports if changed
-    if (nkro_enabled)
-    {
-        // Buffer NKRO, reduce report sends
-        cur_nkro[0] = modifier;
-        memcpy(&cur_nkro[1], nkro_bitmap, NKRO_BYTES_TOTAL);
-
-        if (memcmp(cur_nkro, prev_nkro, NKRO_REPORT_LEN) != 0)
-        {
-            if (HID_SendKeyboardNKRO(modifier, nkro_bitmap))
-            {
-                memcpy(prev_nkro, cur_nkro, NKRO_REPORT_LEN);
-                keymap_on_report_sent();
-            }
-        }
-    }
-    else
-    {
-        // Buffer 6KRO, reduce report sends
-        cur6[0] = modifier;
-        cur6[1] = 0;
-        memcpy(&cur6[2], keycodes6, SIXKRO_BYTES_TOTAL);
-
-        if (memcmp(cur6, prev6, sizeof(cur6)) != 0)
-        {
-            if (HID_SendKeyboard6KRO(modifier, keycodes6))
-            {
-                memcpy(prev6, cur6, sizeof(cur6));
-                keymap_on_report_sent();
-            }
-        }
-    }
-}
-
 // ---------------------------
 // Build HID reports from cached keycodes
 // ---------------------------
@@ -599,15 +570,6 @@ void keymap_build_hid_reports(uint8_t *modifier_out, uint8_t keycodes6[6], uint8
     }
 }
 
-uint32_t keymap_get_sticky_keycode(uint8_t col) { return 0; }
-uint8_t keymap_get_sticky_layer(uint8_t col) { return 0; }
-
-// Expose MT periodic tick
-void keymap_mt_tick(void)
-{
-    mt_tick_timeout();
-}
-
 // Clear one-shot taps after a successful HID report send
 void keymap_on_report_sent(void)
 {
@@ -619,4 +581,53 @@ void keymap_on_report_sent(void)
             key_state[c].cached_kc = KC_NO; // ensure next frame is release/idle
         }
     }
+}
+
+void keymap_send_hid_report()
+{
+    // --- Build HID reports ---
+    keymap_build_hid_reports(&modifier, keycodes6, nkro_bitmap);
+
+    // Send reports if changed
+    if (nkro_enabled)
+    {
+        // Buffer NKRO, reduce report sends
+        cur_nkro[0] = modifier;
+        memcpy(&cur_nkro[1], nkro_bitmap, NKRO_BYTES_TOTAL);
+
+        if (memcmp(cur_nkro, prev_nkro, NKRO_REPORT_LEN) != 0)
+        {
+            if (HID_SendKeyboardNKRO(modifier, nkro_bitmap))
+            {
+                memcpy(prev_nkro, cur_nkro, NKRO_REPORT_LEN);
+                keymap_on_report_sent();
+            }
+        }
+    }
+    else
+    {
+        // Buffer 6KRO, reduce report sends
+        cur6[0] = modifier;
+        cur6[1] = 0;
+        memcpy(&cur6[2], keycodes6, SIXKRO_BYTES_TOTAL);
+
+        if (memcmp(cur6, prev6, sizeof(cur6)) != 0)
+        {
+            if (HID_SendKeyboard6KRO(modifier, keycodes6))
+            {
+                memcpy(prev6, cur6, sizeof(cur6));
+                keymap_on_report_sent();
+            }
+        }
+    }
+}
+
+
+uint32_t keymap_get_sticky_keycode(uint8_t col) { return 0; }
+uint8_t keymap_get_sticky_layer(uint8_t col) { return 0; }
+
+// Expose MT periodic tick
+void keymap_mt_tick(void)
+{
+    mt_tick_timeout();
 }

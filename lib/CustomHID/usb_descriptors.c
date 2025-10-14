@@ -235,12 +235,3 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
     // Optional: handle host-requested actual report if you want
     return 0; // default: TinyUSB handles normally
 }
-
-// -----------------------------
-// Initialization
-// -----------------------------
-
-void USB_HID_Init(void) 
-{
-    tusb_init();
-}

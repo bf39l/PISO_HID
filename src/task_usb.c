@@ -6,7 +6,6 @@
 // Main USB HID task
 void USB_Task(void *pvParameters)
 {
-    keymap_init();
     KeyEvent ev;
 
     for (;;) {
