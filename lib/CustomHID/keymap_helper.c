@@ -47,6 +47,9 @@ uint8_t cur6[SIXKRO_REPORT_LEN];
 uint8_t prev_nkro[NKRO_REPORT_LEN];
 uint8_t cur_nkro[NKRO_REPORT_LEN];
 
+// functional_key_handler.c
+void handle_functional_keys(uint32_t keycode, bool pressed);
+
 void keymap_init(void)
 {
     // Initialize HID report buffers
@@ -144,32 +147,6 @@ static bool is_layer_switch_key(uint32_t kc)
     return (kc >= MO(0) && kc < MO(MAX_LAYERS)) ||
            (kc >= TO(0) && kc < TO(MAX_LAYERS)) ||
            (kc >= TG(0) && kc < TG(MAX_LAYERS));
-}
-
-// ---------------------------
-// Process special keys (NKRO toggle, bootloader)
-// ---------------------------
-void keymap_process_special_keys(uint32_t kc)
-{
-    if (IS_NKRO_TOGGLE(kc))
-    {
-        static uint32_t last_time = 0;
-        uint32_t current_time = to_ms_since_boot(get_absolute_time());
-        if ((current_time - last_time) > 200)
-        {
-            nkro_enabled = !nkro_enabled;
-            last_time = current_time;
-            CDC_SendString(nkro_enabled ? "NKRO enabled\n" : "6KRO enabled\n");
-        }
-    }
-    else if (IS_BOOTLOADER_KEY(kc))
-    {
-        CDC_SendString("Entering bootloader...\n");
-        tud_disconnect();
-        reset_usb_boot(0, 0);
-        while (1)
-            ;
-    }
 }
 
 // ---------------------------
@@ -495,12 +472,14 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
         return report; // don't emit base kc now; report built via cache
     }
 
-    // Special keys
-    if (IS_NKRO_TOGGLE(kc) || IS_BOOTLOADER_KEY(kc))
+    // KBD Functional keys
+    if (IS_KBD_FUNCTIONAL_KEY(kc))
     {
-        report.special_keys = true;
+        report.kbd_functional_keys = true;
         report.keycodes[0] = kc;
         report.keycount = 1;
+        handle_functional_keys(kc, pressed);
+
         return report;
     }
 
@@ -525,15 +504,6 @@ void keymap_process_queue_item(uint8_t row, uint8_t col, bool pressed)
 {
     // Call keymap_get_keycode to get KeyReport
     KeyReport report = keymap_get_keycode(row, col, pressed);
-
-    // Process special keys if needed
-    for (uint8_t i = 0; i < report.keycount; i++)
-    {
-        if (report.special_keys)
-        {
-            keymap_process_special_keys(report.keycodes[i]);
-        }
-    }
 
     // Debug log
     char buf[128];

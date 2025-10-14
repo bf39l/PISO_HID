@@ -112,16 +112,8 @@
 #define KC_RGUI   0xE7
 #define KC_APP    0x65  // Application (Menu) key
 
-// Aliases (QMK naming consistency)
-#define KC_LEFTBRACE  KC_LBRACKET
-#define KC_RIGHTBRACE KC_RBRACKET
-#define KC_BACKSLASH  KC_BSLASH
-#define KC_HASHTILDE  KC_NONUS_HASH
-#define KC_SEMICOLON  KC_SCOLON
-#define KC_APOSTROPHE KC_QUOTE
-
 // --------------------
-// QMK Special Keycodes (non-HID)
+// Non-HID Keycodes
 // --------------------
 #define KC_NO        0x00  // No action
 #define KC_TRANSPARENT 0x01  // Fall through to lower layer
@@ -144,29 +136,30 @@
 // Function control (QMK-style)
 #define RESET        (SAFE_RANGE + 0x10000)
 #define DEBUG        (SAFE_RANGE + 0x10001)
-#define KC_BOOTLOADER RESET
-#define KC_DEBUG      DEBUG
-#define KC_NKRO_TOGGLE  (SAFE_RANGE + 0x10002)  // Toggle NKRO mode
+#define FN_BOOT RESET
+#define FN_DEBUG      DEBUG
+#define FN_NKRO_TG  (SAFE_RANGE + 0x10002)  // Toggle NKRO mode
 
 // --------------------
 // Utility helpers
 // --------------------
 #define IS_MODIFIER(code)    ((code) >= 0xE0 && (code) <= 0xE7)
-#define IS_BOOTLOADER_KEY(code) ((code) == KC_BOOTLOADER)
-#define IS_NKRO_TOGGLE(code) ((code) == KC_NKRO_TOGGLE)
+#define IS_BOOTLOADER_KEY(code) ((code) == FN_BOOT)
+#define IS_NKRO_TOGGLE(code) ((code) == FN_NKRO_TG)
+#define IS_KBD_FUNCTIONAL_KEY(code) ((code) == FN_BOOT || (code) == FN_NKRO_TG)
 
 // --------------------
 // Simple, robust Mod-Tap encoding
 // --------------------
 // Modifier bitmasks for Mod-Tap (supports up to 8 modifiers)
-#define KC_MODS_LCTRL  (0x01)
-#define KC_MODS_LSHIFT (0x02)
-#define KC_MODS_LALT   (0x04)
-#define KC_MODS_LGUI   (0x08)
-#define KC_MODS_RCTRL  (0x10)
-#define KC_MODS_RSHIFT (0x20)
-#define KC_MODS_RALT   (0x40)
-#define KC_MODS_RGUI   (0x80)
+#define MD_LCTRL  (0x01)
+#define MD_LSHIFT (0x02)
+#define MD_LALT   (0x04)
+#define MD_LGUI   (0x08)
+#define MD_RCTRL  (0x10)
+#define MD_RSHIFT (0x20)
+#define MD_RALT   (0x40)
+#define MD_RGUI   (0x80)
 
 // Encoding layout (32-bit):
 // [ SAFE_RANGE + 0x70000 ] | [ TYPE(8) ] | [ PAYLOAD(8) ] | [ TAP_KEY(8) ]
@@ -228,10 +221,10 @@
 
 // Key Report structure to handle multiple keycodes and modifiers
 typedef struct {
-    uint32_t keycodes[MAX_KEYS_PER_REPORT];  // Array of keycodes
+    uint32_t keycodes[MAX_KEYS_PER_REPORT]; // Array of keycodes
     uint8_t keycount;                       // Number of active keycodes
     uint8_t modifiers;                      // Modifier bitmask
-    bool special_keys;                      // Special keys flag (NKRO, bootloader, etc)
+    bool kbd_functional_keys;               // kbd functional keys flag (NKRO, bootloader, etc)
 } KeyReport;
 
 // External NKRO flag
@@ -250,7 +243,7 @@ void keymap_send_hid_report();
 void keymap_build_hid_reports(uint8_t *modifier_out, uint8_t keycodes6[6], uint8_t nkro_bitmap[NKRO_BYTES_TOTAL]);
 
 // Process special keys (NKRO toggle, bootloader)
-void keymap_process_special_keys(uint32_t kc);
+// void keymap_process_special_keys(uint32_t kc);
 
 // Get active layer (for debugging or other purposes)
 uint8_t keymap_get_active_layer(void);

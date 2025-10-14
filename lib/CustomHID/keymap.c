@@ -7,14 +7,14 @@ uint32_t keymaps[MAX_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
     // --- Layer 0: Base ---
     {
         {
-            MT(1, KC_SPACE), MT(KC_MODS_LCTRL | KC_MODS_LSHIFT | KC_MODS_LALT, KC_1), KC_2, KC_3, KC_4, KC_5, KC_6, KC_V,
+            MT(1, KC_SPACE), MT(MD_LCTRL | MD_LSHIFT | MD_LALT, KC_1), KC_2, KC_3, KC_4, KC_5, KC_6, KC_V,
             TG(1), TO(1), KC_W, KC_E, KC_R, KC_T, KC_Y, KC_U,
             KC_CAPSLOCK, KC_A, KC_S, KC_D, KC_F, KC_G, KC_H, KC_J,
             KC_LSHIFT, KC_Z, KC_X, KC_C, KC_V, KC_B, KC_N, KC_M,
             KC_LCTRL, KC_LGUI, KC_LALT, KC_SPACE, KC_RALT, KC_RGUI, KC_APP, KC_RCTRL,
             KC_F1, KC_F2, KC_F3, KC_F4, KC_F5, KC_F6, KC_F7, KC_F8,
-            MT( KC_MODS_LSHIFT | KC_MODS_LALT, KC_2), MT( KC_MODS_LALT, KC_3), KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
-            KC_NKRO_TOGGLE, MO(1), KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_BOOTLOADER
+            MT( MD_LSHIFT | MD_LALT, KC_2), MT( MD_LALT, KC_3), KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
+            FN_NKRO_TG, MO(1), KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, FN_BOOT
         }
     },
 
@@ -28,7 +28,7 @@ uint32_t keymaps[MAX_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
             KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
             KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
             KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
-            MO(2), KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_BOOTLOADER
+            MO(2), KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, FN_BOOT
         }
     },
     // --- Layer 2: Another layer ---
@@ -41,7 +41,7 @@ uint32_t keymaps[MAX_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
             KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
             KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
             KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
-            KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_BOOTLOADER
+            KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, FN_BOOT
         }
     },
 };
