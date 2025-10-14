@@ -1,4 +1,4 @@
-#include "keymap.h"
+#include "custom_hid.h"
 
 // ---------------------------
 // Layer Stack System (unified for MO and TG)
@@ -49,6 +49,11 @@ uint8_t cur_nkro[NKRO_REPORT_LEN];
 
 // functional_key_handler.c
 void handle_functional_keys(uint32_t keycode, bool pressed);
+// usb_descriptors.c
+int CDC_SendString(const char* str);
+bool HID_SendKeyboard6KRO(uint8_t modifier, uint8_t keycodes[6]);
+bool HID_SendKeyboardNKRO(uint8_t modifier, const uint8_t nkro_bitmap[NKRO_BYTES_TOTAL]);
+bool HID_SendMouse(int8_t x, int8_t y, int8_t wheel, uint8_t buttons);
 
 void keymap_init(void)
 {

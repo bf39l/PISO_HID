@@ -1,4 +1,4 @@
-#include "keymap.h"
+#include "custom_hid.h"
 
 // ---------------------------
 // Keymaps definition

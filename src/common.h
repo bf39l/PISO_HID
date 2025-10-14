@@ -11,11 +11,10 @@
 // TinyUSB
 #include "bsp/board.h"
 #include "tusb.h"
-#include "usb_descriptors.h"
 // Shift Register
 #include "ShiftRegister_PISO.h"
-// Keycodes now in keymap.h
-#include "keymap.h"
+// Custom HID
+#include "custom_hid.h"
 // OLED
 #include "oled.h"
 

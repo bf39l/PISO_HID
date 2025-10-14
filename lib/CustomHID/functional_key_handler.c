@@ -1,8 +1,12 @@
-#include "keymap.h"
+#include "custom_hid.h"
 
 // ---------------------------
 // Process KBD functional keys (NKRO toggle, bootloader etc..)
 // ---------------------------
+
+// usb_descriptors.c
+int CDC_SendString(const char* str);
+
 
 bool process_nkro_toggle(uint32_t kc, bool pressed)
 {
