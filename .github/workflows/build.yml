@@ -13,8 +13,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: false
           fetch-depth: 0
+
+      - name: Initialize submodules (with fallback)
+        shell: bash
+        run: |
+          set -eo pipefail
+          git submodule sync --recursive
+          if ! git submodule update --init --force --recursive; then
+            echo "Recorded submodule commit missing; falling back to remote for FreeRTOS-Kernel"
+            git -C lib/FreeRTOS-Kernel init || true
+            git -C lib/FreeRTOS-Kernel remote set-url origin https://github.com/FreeRTOS/FreeRTOS-Kernel
+            git -C lib/FreeRTOS-Kernel fetch origin main --depth=1
+            git -C lib/FreeRTOS-Kernel checkout -q FETCH_HEAD
+          fi
 
       - name: Install toolchain and build deps
         run: |
