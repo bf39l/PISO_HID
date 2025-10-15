@@ -40,7 +40,7 @@ bool process_bootloader_key(uint32_t kc, bool pressed)
 
 bool process_reset_key(uint32_t kc, bool pressed)
 {
-    if (kc == FN_RESET)
+    if (IS_RESET_KEY(kc))
     {
         if (pressed) return true; // only on key release
         

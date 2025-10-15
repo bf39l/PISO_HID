@@ -163,6 +163,7 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 #define IS_MODIFIER(code)    ((code) >= 0xE0 && (code) <= 0xE7)
 #define IS_BOOTLOADER_KEY(code) ((code) == FN_BOOT)
 #define IS_NKRO_TOGGLE(code) ((code) == FN_NKRO_TG)
+#define IS_RESET_KEY(code) ((code) == FN_RESET)
 #define IS_KBD_FUNCTIONAL_KEY(code) ((code) == FN_BOOT || (code) == FN_NKRO_TG || (code) == FN_DEBUG || (code) == FN_RESET)
 
 // --------------------
