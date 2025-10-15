@@ -1,0 +1,44 @@
+name: Build Pico Firmware
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install toolchain and build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi
+
+      - name: Configure (CMake + Ninja)
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPICO_SDK_FETCH_FROM_GIT=1
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PISO_HID-firmware
+          path: |
+            build/*.uf2
+            build/*.elf
+            build/*.hex
+            build/*.bin
+            build/*.dis
+            build/*.map
+          if-no-files-found: error
