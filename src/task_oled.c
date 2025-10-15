@@ -124,11 +124,14 @@ void OLED_Task(void *pvParameters)
     draw_splash();
 
     ShiftRegister64 recv;
-    ShiftRegister64 last_recv = {0};
+    ShiftRegister64 last_recv = (ShiftRegister64){0};
     bool have_recv = false;
     KbdState kbd_state = (KbdState){0};
     uint32_t anim_frame = 0;
     bool in_idle_anim = false;
+
+    // Software timer to enter idle after ~10s without SR updates
+    uint32_t no_sr_ms = 0;
 
     for (;;) {
         // Drain to the latest keyboard state
@@ -142,14 +145,18 @@ void OLED_Task(void *pvParameters)
         }
 
         if (!in_idle_anim) {
-            // Wait up to 10s for a debounced change snapshot
-            if (xQueueReceive(xShiftRegisterOutputQueue_OLED, &recv, pdMS_TO_TICKS(10000)) == pdTRUE) {
+            // Short wait for SR update; keep servicing KbdState frequently
+            if (xQueueReceive(xShiftRegisterOutputQueue_OLED, &recv, pdMS_TO_TICKS(5)) == pdTRUE) {
                 last_recv = recv; have_recv = true;
+                no_sr_ms = 0;
                 render_main(&kbd_state, &last_recv);
             } else {
-                // Enter idle animation
-                in_idle_anim = true;
-                anim_frame = 0;
+                // No SR this tick, advance idle timer
+                if (no_sr_ms < 10000) no_sr_ms += 5;
+                if (no_sr_ms >= 10000) {
+                    in_idle_anim = true;
+                    anim_frame = 0;
+                }
             }
         } else {
             // Run one animation frame
@@ -161,6 +168,7 @@ void OLED_Task(void *pvParameters)
                 while (xQueueReceive(xKbdStateQueue, &kbd_state, 0) == pdTRUE) {}
                 render_main(&kbd_state, &last_recv);
                 in_idle_anim = false;
+                no_sr_ms = 0;
                 continue;
             }
             vTaskDelay(pdMS_TO_TICKS(50));

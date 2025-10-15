@@ -283,6 +283,8 @@ static void mt_tick_timeout(void)
                     char buf[32];
                     snprintf(buf, sizeof(buf), "MTL(%u) ON\n", (unsigned)layer);
                     CDC_SendString(buf);
+                    // Mark state changed so USB task publishes to OLED
+                    kbd_state_update(true);
                 }
             }
             mt_slots[i].hold_sent = true;
