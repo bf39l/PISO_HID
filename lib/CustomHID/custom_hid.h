@@ -9,6 +9,7 @@
 #include "pico/bootrom.h"
 // TinyUSB (only need tusb.h types here)
 #include "tusb.h"
+#include "hardware/watchdog.h"
 
 // --------------------
 // usb_descriptors.h
@@ -147,12 +148,14 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 // #define TT(layer)      (SAFE_RANGE + 0x05000 + (layer))  // Tap-Toggle layer
 // #define LT(layer, kc)  (SAFE_RANGE + 0x06000 + ((layer) << 8) + (kc)) // Layer Tap
 
-// Function control (QMK-style)
-#define RESET        (SAFE_RANGE + 0x10000)
-#define DEBUG        (SAFE_RANGE + 0x10001)
-#define FN_BOOT RESET
-#define FN_DEBUG      DEBUG
-#define FN_NKRO_TG  (SAFE_RANGE + 0x10002)  // Toggle NKRO mode
+// Function control
+#define RESET      (SAFE_RANGE + 0x10000)
+#define DEBUG      (SAFE_RANGE + 0x10001)
+#define BOOT       (SAFE_RANGE + 0x10002)
+#define FN_NKRO_TG (SAFE_RANGE + 0x10003)  // Toggle NKRO mode
+#define FN_RESET   RESET
+#define FN_BOOT    BOOT
+#define FN_DEBUG   DEBUG
 
 // --------------------
 // Utility helpers
@@ -160,7 +163,7 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 #define IS_MODIFIER(code)    ((code) >= 0xE0 && (code) <= 0xE7)
 #define IS_BOOTLOADER_KEY(code) ((code) == FN_BOOT)
 #define IS_NKRO_TOGGLE(code) ((code) == FN_NKRO_TG)
-#define IS_KBD_FUNCTIONAL_KEY(code) ((code) == FN_BOOT || (code) == FN_NKRO_TG)
+#define IS_KBD_FUNCTIONAL_KEY(code) ((code) == FN_BOOT || (code) == FN_NKRO_TG || (code) == FN_DEBUG || (code) == FN_RESET)
 
 // --------------------
 // Simple, robust Mod-Tap encoding

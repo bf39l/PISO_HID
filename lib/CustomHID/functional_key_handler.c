@@ -38,8 +38,25 @@ bool process_bootloader_key(uint32_t kc, bool pressed)
     return false;
 }
 
+bool process_reset_key(uint32_t kc, bool pressed)
+{
+    if (kc == FN_RESET)
+    {
+        if (pressed) return true; // only on key release
+        
+        CDC_SendString("Resetting device...\n");
+        watchdog_reboot(0, 0, 0);
+        while (1);
+        
+        return true;
+    }
+    return false;
+}
+
 void handle_functional_keys(uint32_t kc, bool pressed) 
 {
     if (process_nkro_toggle(kc, pressed)) return;
     if (process_bootloader_key(kc, pressed)) return;
+    if (process_reset_key(kc, pressed)) return;
+    // Add more functional keys here if needed
 }
