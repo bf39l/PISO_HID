@@ -4,6 +4,7 @@
 QueueHandle_t xShiftRegisterOutputQueue_OLED;
 // QueueHandle_t xShiftRegisterOutputQueue_USB;
 QueueHandle_t xKeyEventQueue;
+QueueHandle_t xKbdStateQueue;
 
 void KeyPressScan_Task(void *pvParameters);
 void USB_Task(void *pvParameters);
@@ -18,12 +19,12 @@ int main(void)
     gpio_pull_up(I2C_SDA);
     gpio_pull_up(I2C_SCL);
 
-    board_init();
     USB_HID_Init();
 
     xShiftRegisterOutputQueue_OLED = xQueueCreate(256, sizeof(ShiftRegister64));
     // xShiftRegisterOutputQueue_USB  = xQueueCreate(10, sizeof(ShiftRegister64));
     xKeyEventQueue = xQueueCreate(256, sizeof(KeyEvent));
+    xKbdStateQueue = xQueueCreate(32, sizeof(KbdState));
 
     xTaskCreate(KeyPressScan_Task, "Scan", 256, NULL, 3, NULL);
     xTaskCreate(USB_Task, "USB", 256, NULL, 2, NULL);

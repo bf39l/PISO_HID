@@ -53,7 +53,8 @@ pico_enable_stdio_usb(PISO_HID 0)
 add_library(CUSTOM_HID
     lib/CustomHID/usb_descriptors.c
     lib/CustomHID/keymap.c
-    lib/CustomHID/keymap_helper.c
+    lib/CustomHID/functional_key_handler.c
+    lib/CustomHID/custom_hid.c
 )
 target_include_directories(CUSTOM_HID PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/lib/CustomHID/ # tusb_config.h and etc...

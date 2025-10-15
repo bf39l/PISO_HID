@@ -5,9 +5,24 @@
 #include "pico/stdlib.h"
 #include "hardware/sync.h"
 #include <string.h>
-#include "usb_descriptors.h"
 #include <stdio.h>
 #include "pico/bootrom.h"
+// TinyUSB (only need tusb.h types here)
+#include "tusb.h"
+#include "hardware/watchdog.h"
+
+// --------------------
+// usb_descriptors.h
+// --------------------
+// Initialize TinyUSB stack for HID + CDC
+void USB_HID_Init(void);
+
+// Callbacks
+uint8_t const * tud_hid_descriptor_report_cb(uint8_t instance);
+void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type,
+                           uint8_t const* buffer, uint16_t bufsize);
+uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type,
+                               uint8_t* buffer, uint16_t reqlen);
 
 // --------------------
 // HID Keyboard Usage IDs (0x04 - 0xE7)
@@ -112,16 +127,8 @@
 #define KC_RGUI   0xE7
 #define KC_APP    0x65  // Application (Menu) key
 
-// Aliases (QMK naming consistency)
-#define KC_LEFTBRACE  KC_LBRACKET
-#define KC_RIGHTBRACE KC_RBRACKET
-#define KC_BACKSLASH  KC_BSLASH
-#define KC_HASHTILDE  KC_NONUS_HASH
-#define KC_SEMICOLON  KC_SCOLON
-#define KC_APOSTROPHE KC_QUOTE
-
 // --------------------
-// QMK Special Keycodes (non-HID)
+// Non-HID Keycodes
 // --------------------
 #define KC_NO        0x00  // No action
 #define KC_TRANSPARENT 0x01  // Fall through to lower layer
@@ -141,32 +148,36 @@
 // #define TT(layer)      (SAFE_RANGE + 0x05000 + (layer))  // Tap-Toggle layer
 // #define LT(layer, kc)  (SAFE_RANGE + 0x06000 + ((layer) << 8) + (kc)) // Layer Tap
 
-// Function control (QMK-style)
-#define RESET        (SAFE_RANGE + 0x10000)
-#define DEBUG        (SAFE_RANGE + 0x10001)
-#define KC_BOOTLOADER RESET
-#define KC_DEBUG      DEBUG
-#define KC_NKRO_TOGGLE  (SAFE_RANGE + 0x10002)  // Toggle NKRO mode
+// Function control
+#define RESET      (SAFE_RANGE + 0x10000)
+#define DEBUG      (SAFE_RANGE + 0x10001)
+#define BOOT       (SAFE_RANGE + 0x10002)
+#define FN_NKRO_TG (SAFE_RANGE + 0x10003)  // Toggle NKRO mode
+#define FN_RESET   RESET
+#define FN_BOOT    BOOT
+#define FN_DEBUG   DEBUG
 
 // --------------------
 // Utility helpers
 // --------------------
 #define IS_MODIFIER(code)    ((code) >= 0xE0 && (code) <= 0xE7)
-#define IS_BOOTLOADER_KEY(code) ((code) == KC_BOOTLOADER)
-#define IS_NKRO_TOGGLE(code) ((code) == KC_NKRO_TOGGLE)
+#define IS_BOOTLOADER_KEY(code) ((code) == FN_BOOT)
+#define IS_NKRO_TOGGLE(code) ((code) == FN_NKRO_TG)
+#define IS_RESET_KEY(code) ((code) == FN_RESET)
+#define IS_KBD_FUNCTIONAL_KEY(code) ((code) == FN_BOOT || (code) == FN_NKRO_TG || (code) == FN_DEBUG || (code) == FN_RESET)
 
 // --------------------
 // Simple, robust Mod-Tap encoding
 // --------------------
 // Modifier bitmasks for Mod-Tap (supports up to 8 modifiers)
-#define KC_MODS_LCTRL  (0x01)
-#define KC_MODS_LSHIFT (0x02)
-#define KC_MODS_LALT   (0x04)
-#define KC_MODS_LGUI   (0x08)
-#define KC_MODS_RCTRL  (0x10)
-#define KC_MODS_RSHIFT (0x20)
-#define KC_MODS_RALT   (0x40)
-#define KC_MODS_RGUI   (0x80)
+#define MD_LCTRL  (0x01)
+#define MD_LSHIFT (0x02)
+#define MD_LALT   (0x04)
+#define MD_LGUI   (0x08)
+#define MD_RCTRL  (0x10)
+#define MD_RSHIFT (0x20)
+#define MD_RALT   (0x40)
+#define MD_RGUI   (0x80)
 
 // Encoding layout (32-bit):
 // [ SAFE_RANGE + 0x70000 ] | [ TYPE(8) ] | [ PAYLOAD(8) ] | [ TAP_KEY(8) ]
@@ -228,32 +239,36 @@
 
 // Key Report structure to handle multiple keycodes and modifiers
 typedef struct {
-    uint32_t keycodes[MAX_KEYS_PER_REPORT];  // Array of keycodes
+    uint32_t keycodes[MAX_KEYS_PER_REPORT]; // Array of keycodes
     uint8_t keycount;                       // Number of active keycodes
     uint8_t modifiers;                      // Modifier bitmask
-    bool special_keys;                      // Special keys flag (NKRO, bootloader, etc)
+    bool kbd_functional_keys;               // kbd functional keys flag (NKRO, bootloader, etc)
 } KeyReport;
 
 // External NKRO flag
 extern bool nkro_enabled;
 
+// -----------------------------
+// Public keyboard state snapshot (for OLED/status)
+// -----------------------------
+typedef struct {
+    bool nkro_enabled;       // true = NKRO, false = 6KRO
+    uint8_t base_layer;      // current base layer (set by TO)
+    uint8_t active_layer;    // top-most active layer (MO/TG/MT resolved)
+    uint8_t stack_size;      // number of active layer entries (MO/TG/MT holds)
+} KbdState;
+
+// Return the latest keyboard state snapshot
+void keymap_get_kbd_state(KbdState* out);
+// Monotonic version that increments when state changes (layers/NKRO)
+uint32_t keymap_get_kbd_state_version(void);
+
 // Keymap storage
 extern uint32_t keymaps[MAX_LAYERS][MATRIX_ROWS][MATRIX_COLS];
 
 void keymap_init(void);
-// Get current keycode (handles MO/TG/TO internally)
-KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed);
 void keymap_process_queue_item(uint8_t row, uint8_t col, bool pressed);
 void keymap_send_hid_report();
-
-// Build HID reports from keys
-void keymap_build_hid_reports(uint8_t *modifier_out, uint8_t keycodes6[6], uint8_t nkro_bitmap[NKRO_BYTES_TOTAL]);
-
-// Process special keys (NKRO toggle, bootloader)
-void keymap_process_special_keys(uint32_t kc);
-
-// Get active layer (for debugging or other purposes)
-uint8_t keymap_get_active_layer(void);
 
 // Save/load keymap to flash
 void keymap_save_to_flash(void);
@@ -261,6 +276,3 @@ void keymap_load_from_flash(void);
 
 // MT periodic tick to process hold detection while key is held
 void keymap_mt_tick(void);
-
-// Called after a HID report is successfully sent to clear one-shot taps
-void keymap_on_report_sent(void);

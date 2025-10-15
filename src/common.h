@@ -1,21 +1,17 @@
 #pragma once
 
 #include <stdio.h>
+#include <stdint.h>
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
-#include "pico/bootrom.h"
 // FreeRTOS
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
-// TinyUSB
-#include "bsp/board.h"
-#include "tusb.h"
-#include "usb_descriptors.h"
 // Shift Register
 #include "ShiftRegister_PISO.h"
-// Keycodes now in keymap.h
-#include "keymap.h"
+// Custom HID
+#include "custom_hid.h"
 // OLED
 #include "oled.h"
 
@@ -32,3 +28,5 @@ typedef struct {
 extern QueueHandle_t xShiftRegisterOutputQueue_OLED;
 // extern QueueHandle_t xShiftRegisterOutputQueue_USB;
 extern QueueHandle_t xKeyEventQueue;
+// Queue to publish KbdState updates to OLED task
+extern QueueHandle_t xKbdStateQueue;

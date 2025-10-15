@@ -1,5 +1,4 @@
-#include "usb_descriptors.h"
-
+#include "custom_hid.h"
 // -----------------------------
 // HID report structs
 // -----------------------------
@@ -55,6 +54,15 @@ uint8_t const hid_report_desc_mouse[] = {
     TUD_HID_REPORT_DESC_MOUSE()
 };
 
+int CDC_SendString(const char* str) {
+    if (tud_cdc_connected()) {
+        int ret = tud_cdc_write_str(str);
+        tud_cdc_write_flush();
+        return ret;
+    }
+    return 0;
+}
+
 // -----------------------------
 // HID send helpers
 // -----------------------------
@@ -87,28 +95,6 @@ bool HID_SendMouse(int8_t x, int8_t y, int8_t wheel, uint8_t buttons) {
         return true;
     }
     return false;
-}
-
-int CDC_SendString(const char* str) {
-    if (tud_cdc_connected()) {
-        int ret = tud_cdc_write_str(str);
-        tud_cdc_write_flush();
-        return ret;
-    }
-    return 0;
-}
-
-
-static char _cdc_log_buf[128]; // temporary buffer for log messages
-
-void CDC_Log(const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    int n = vsnprintf(_cdc_log_buf, sizeof(_cdc_log_buf), fmt, args);
-    va_end(args);
-    if (n > 0) {
-        CDC_SendString(_cdc_log_buf);
-    }
 }
 
 // -----------------------------
@@ -248,13 +234,4 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 
     // Optional: handle host-requested actual report if you want
     return 0; // default: TinyUSB handles normally
-}
-
-// -----------------------------
-// Initialization
-// -----------------------------
-
-void USB_HID_Init(void) 
-{
-    tusb_init();
 }

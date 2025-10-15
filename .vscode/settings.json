@@ -44,7 +44,7 @@
         "stdbool.h": "c",
         "usb_descriptors.h": "c",
         "board.h": "c",
-        "keymap.h": "c",
+        "custom_hid.h": "c",
         "stdio.h": "c",
         "tusb.h": "c",
         "bootrom.h": "c",

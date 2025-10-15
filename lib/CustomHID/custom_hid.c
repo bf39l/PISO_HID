@@ -1,4 +1,7 @@
-#include "keymap.h"
+#include "custom_hid.h"
+
+// TinyUSB BSP forward declaration (avoid pulling board.h into public headers)
+void board_init(void);
 
 // ---------------------------
 // Layer Stack System (unified for MO and TG)
@@ -47,30 +50,24 @@ uint8_t cur6[SIXKRO_REPORT_LEN];
 uint8_t prev_nkro[NKRO_REPORT_LEN];
 uint8_t cur_nkro[NKRO_REPORT_LEN];
 
-void keymap_init(void)
+// functional_key_handler.c
+void handle_functional_keys(uint32_t keycode, bool pressed);
+// usb_descriptors.c
+int CDC_SendString(const char* str);
+bool HID_SendKeyboard6KRO(uint8_t modifier, uint8_t keycodes[6]);
+bool HID_SendKeyboardNKRO(uint8_t modifier, const uint8_t nkro_bitmap[NKRO_BYTES_TOTAL]);
+bool HID_SendMouse(int8_t x, int8_t y, int8_t wheel, uint8_t buttons);
+
+// -----------------------------
+// Initialization
+// -----------------------------
+
+void USB_HID_Init(void) 
 {
-    // Initialize HID report buffers
-    // Force first frame to send by initializing prev to different values
-    memset(prev6, 0xFF, sizeof(prev6));
-    memset(prev_nkro, 0xFF, sizeof(prev_nkro));
-}
-
-// NKRO mode flag is defined in usb_descriptors.c
-// extern bool nkro_enabled;
-
-// ---------------------------
-// Initialize
-// ---------------------------
-void layer_manager_init(void)
-{
-    memset(&layer_state, 0, sizeof(layer_state));
-    memset(to_pressed, 0, sizeof(to_pressed));
-    memset(layer_key_pressed, 0, sizeof(layer_key_pressed));
-    memset(key_state, 0, sizeof(key_state));
-    memset(oneshot_tap, 0, sizeof(oneshot_tap));
-
-    // Default to NKRO mode
-    nkro_enabled = true;
+    // Initialize TinyUSB BSP (USB clocks, pins)
+    board_init();
+    tusb_init();
+    keymap_init();
 }
 
 // ---------------------------
@@ -81,6 +78,56 @@ uint8_t keymap_get_active_layer(void)
     if (layer_state.size > 0)
         return layer_state.stack[layer_state.size - 1].activated_layer;
     return layer_state.base_layer;
+}
+
+// Internal keyboard state snapshot and change counter
+static KbdState g_kbd_state = {0};
+static uint32_t g_kbd_state_ver = 0;
+
+void kbd_state_update(bool force)
+{
+    KbdState s = {
+        .nkro_enabled = nkro_enabled,
+        .base_layer   = layer_state.base_layer,
+        .active_layer = keymap_get_active_layer(),
+        .stack_size   = layer_state.size,
+    };
+    if (force || memcmp(&s, &g_kbd_state, sizeof(KbdState)) != 0) {
+        g_kbd_state = s;
+        g_kbd_state_ver++;
+    }
+}
+
+void keymap_get_kbd_state(KbdState* out)
+{
+    if (!out) return;
+    // Ensure we return a consistent snapshot
+    kbd_state_update(false);
+    *out = g_kbd_state;
+}
+
+uint32_t keymap_get_kbd_state_version(void)
+{
+    kbd_state_update(false);
+    return g_kbd_state_ver;
+}
+
+void keymap_init(void)
+{
+    // Initialize HID report buffers
+    // Force first frame to send by initializing prev to different values
+    memset(prev6, 0xFF, sizeof(prev6));
+    memset(prev_nkro, 0xFF, sizeof(prev_nkro));
+
+    memset(&layer_state, 0, sizeof(layer_state));
+    memset(to_pressed, 0, sizeof(to_pressed));
+    memset(layer_key_pressed, 0, sizeof(layer_key_pressed));
+    memset(key_state, 0, sizeof(key_state));
+    memset(oneshot_tap, 0, sizeof(oneshot_tap));
+
+    // Default to 6KRO mode
+    nkro_enabled = false;
+    kbd_state_update(true);
 }
 
 // ---------------------------
@@ -144,32 +191,6 @@ static bool is_layer_switch_key(uint32_t kc)
     return (kc >= MO(0) && kc < MO(MAX_LAYERS)) ||
            (kc >= TO(0) && kc < TO(MAX_LAYERS)) ||
            (kc >= TG(0) && kc < TG(MAX_LAYERS));
-}
-
-// ---------------------------
-// Process special keys (NKRO toggle, bootloader)
-// ---------------------------
-void keymap_process_special_keys(uint32_t kc)
-{
-    if (IS_NKRO_TOGGLE(kc))
-    {
-        static uint32_t last_time = 0;
-        uint32_t current_time = to_ms_since_boot(get_absolute_time());
-        if ((current_time - last_time) > 200)
-        {
-            nkro_enabled = !nkro_enabled;
-            last_time = current_time;
-            CDC_SendString(nkro_enabled ? "NKRO enabled\n" : "6KRO enabled\n");
-        }
-    }
-    else if (IS_BOOTLOADER_KEY(kc))
-    {
-        CDC_SendString("Entering bootloader...\n");
-        tud_disconnect();
-        reset_usb_boot(0, 0);
-        while (1)
-            ;
-    }
 }
 
 // ---------------------------
@@ -262,6 +283,8 @@ static void mt_tick_timeout(void)
                     char buf[32];
                     snprintf(buf, sizeof(buf), "MTL(%u) ON\n", (unsigned)layer);
                     CDC_SendString(buf);
+                    // Mark state changed so USB task publishes to OLED
+                    kbd_state_update(true);
                 }
             }
             mt_slots[i].hold_sent = true;
@@ -332,6 +355,7 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
             snprintf(buf, sizeof(buf), "TO(%u)\n", (unsigned)target);
             CDC_SendString(buf);
             print_layer_stack();
+            kbd_state_update(true);
         }
         return report; // Empty report
     }
@@ -356,6 +380,7 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
                 snprintf(buf, sizeof(buf), "MO(%d) ", target);
                 CDC_SendString(buf);
                 print_layer_stack();
+                kbd_state_update(true);
             }
         }
         if (!pressed && stack_idx >= 0)
@@ -373,6 +398,7 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
             snprintf(buf, sizeof(buf), "~MO(%d) ", released);
             CDC_SendString(buf);
             print_layer_stack();
+            kbd_state_update(true);
         }
         return report; // Empty report
     }
@@ -406,6 +432,7 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
                     snprintf(buf, sizeof(buf), "TG(%d) ON ", target);
                     CDC_SendString(buf);
                     print_layer_stack();
+                    kbd_state_update(true);
                 }
             }
             else
@@ -423,6 +450,7 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
                 snprintf(buf, sizeof(buf), "TG(%d) OFF ", released);
                 CDC_SendString(buf);
                 print_layer_stack();
+                kbd_state_update(true);
             }
         }
         return report; // Empty report
@@ -484,6 +512,7 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
                             char buf[32];
                             snprintf(buf, sizeof(buf), "MTL(%u) OFF\n", (unsigned)released);
                             CDC_SendString(buf);
+                            kbd_state_update(true);
                         }
                     }
                 }
@@ -495,12 +524,14 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
         return report; // don't emit base kc now; report built via cache
     }
 
-    // Special keys
-    if (IS_NKRO_TOGGLE(kc) || IS_BOOTLOADER_KEY(kc))
+    // KBD Functional keys
+    if (IS_KBD_FUNCTIONAL_KEY(kc))
     {
-        report.special_keys = true;
+        report.kbd_functional_keys = true;
         report.keycodes[0] = kc;
         report.keycount = 1;
+        handle_functional_keys(kc, pressed);
+
         return report;
     }
 
@@ -526,60 +557,12 @@ void keymap_process_queue_item(uint8_t row, uint8_t col, bool pressed)
     // Call keymap_get_keycode to get KeyReport
     KeyReport report = keymap_get_keycode(row, col, pressed);
 
-    // Process special keys if needed
-    for (uint8_t i = 0; i < report.keycount; i++)
-    {
-        if (report.special_keys)
-        {
-            keymap_process_special_keys(report.keycodes[i]);
-        }
-    }
-
     // Debug log
     char buf[128];
     uint32_t raw_kc = keymaps[keymap_get_active_layer()][row][col];
     snprintf(buf, sizeof(buf), "%s row=%d col=%d kc=0x%08X mods=0x%02X\n",
              pressed ? "D" : "U", row, col, raw_kc, report.modifiers);
     CDC_SendString(buf);
-}
-
-void keymap_send_hid_report()
-{
-    // --- Build HID reports ---
-    keymap_build_hid_reports(&modifier, keycodes6, nkro_bitmap);
-
-    // Send reports if changed
-    if (nkro_enabled)
-    {
-        // Buffer NKRO, reduce report sends
-        cur_nkro[0] = modifier;
-        memcpy(&cur_nkro[1], nkro_bitmap, NKRO_BYTES_TOTAL);
-
-        if (memcmp(cur_nkro, prev_nkro, NKRO_REPORT_LEN) != 0)
-        {
-            if (HID_SendKeyboardNKRO(modifier, nkro_bitmap))
-            {
-                memcpy(prev_nkro, cur_nkro, NKRO_REPORT_LEN);
-                keymap_on_report_sent();
-            }
-        }
-    }
-    else
-    {
-        // Buffer 6KRO, reduce report sends
-        cur6[0] = modifier;
-        cur6[1] = 0;
-        memcpy(&cur6[2], keycodes6, SIXKRO_BYTES_TOTAL);
-
-        if (memcmp(cur6, prev6, sizeof(cur6)) != 0)
-        {
-            if (HID_SendKeyboard6KRO(modifier, keycodes6))
-            {
-                memcpy(prev6, cur6, sizeof(cur6));
-                keymap_on_report_sent();
-            }
-        }
-    }
 }
 
 // ---------------------------
@@ -624,15 +607,6 @@ void keymap_build_hid_reports(uint8_t *modifier_out, uint8_t keycodes6[6], uint8
     }
 }
 
-uint32_t keymap_get_sticky_keycode(uint8_t col) { return 0; }
-uint8_t keymap_get_sticky_layer(uint8_t col) { return 0; }
-
-// Expose MT periodic tick
-void keymap_mt_tick(void)
-{
-    mt_tick_timeout();
-}
-
 // Clear one-shot taps after a successful HID report send
 void keymap_on_report_sent(void)
 {
@@ -644,4 +618,53 @@ void keymap_on_report_sent(void)
             key_state[c].cached_kc = KC_NO; // ensure next frame is release/idle
         }
     }
+}
+
+void keymap_send_hid_report()
+{
+    // --- Build HID reports ---
+    keymap_build_hid_reports(&modifier, keycodes6, nkro_bitmap);
+
+    // Send reports if changed
+    if (nkro_enabled)
+    {
+        // Buffer NKRO, reduce report sends
+        cur_nkro[0] = modifier;
+        memcpy(&cur_nkro[1], nkro_bitmap, NKRO_BYTES_TOTAL);
+
+        if (memcmp(cur_nkro, prev_nkro, NKRO_REPORT_LEN) != 0)
+        {
+            if (HID_SendKeyboardNKRO(modifier, nkro_bitmap))
+            {
+                memcpy(prev_nkro, cur_nkro, NKRO_REPORT_LEN);
+                keymap_on_report_sent();
+            }
+        }
+    }
+    else
+    {
+        // Buffer 6KRO, reduce report sends
+        cur6[0] = modifier;
+        cur6[1] = 0;
+        memcpy(&cur6[2], keycodes6, SIXKRO_BYTES_TOTAL);
+
+        if (memcmp(cur6, prev6, sizeof(cur6)) != 0)
+        {
+            if (HID_SendKeyboard6KRO(modifier, keycodes6))
+            {
+                memcpy(prev6, cur6, sizeof(cur6));
+                keymap_on_report_sent();
+            }
+        }
+    }
+}
+
+
+uint32_t keymap_get_sticky_keycode(uint8_t col) { return 0; }
+uint8_t keymap_get_sticky_layer(uint8_t col) { return 0; }
+
+// Expose MT periodic tick
+void keymap_mt_tick(void)
+{
+    mt_tick_timeout();
 }
