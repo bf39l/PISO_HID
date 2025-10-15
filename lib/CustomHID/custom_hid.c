@@ -1,5 +1,8 @@
 #include "custom_hid.h"
 
+// TinyUSB BSP forward declaration (avoid pulling board.h into public headers)
+void board_init(void);
+
 // ---------------------------
 // Layer Stack System (unified for MO and TG)
 // ---------------------------
@@ -61,34 +64,10 @@ bool HID_SendMouse(int8_t x, int8_t y, int8_t wheel, uint8_t buttons);
 
 void USB_HID_Init(void) 
 {
+    // Initialize TinyUSB BSP (USB clocks, pins)
+    board_init();
     tusb_init();
     keymap_init();
-}
-
-void keymap_init(void)
-{
-    // Initialize HID report buffers
-    // Force first frame to send by initializing prev to different values
-    memset(prev6, 0xFF, sizeof(prev6));
-    memset(prev_nkro, 0xFF, sizeof(prev_nkro));
-}
-
-// NKRO mode flag is defined in usb_descriptors.c
-// extern bool nkro_enabled;
-
-// ---------------------------
-// Initialize
-// ---------------------------
-void layer_manager_init(void)
-{
-    memset(&layer_state, 0, sizeof(layer_state));
-    memset(to_pressed, 0, sizeof(to_pressed));
-    memset(layer_key_pressed, 0, sizeof(layer_key_pressed));
-    memset(key_state, 0, sizeof(key_state));
-    memset(oneshot_tap, 0, sizeof(oneshot_tap));
-
-    // Default to NKRO mode
-    nkro_enabled = true;
 }
 
 // ---------------------------
@@ -99,6 +78,56 @@ uint8_t keymap_get_active_layer(void)
     if (layer_state.size > 0)
         return layer_state.stack[layer_state.size - 1].activated_layer;
     return layer_state.base_layer;
+}
+
+// Internal keyboard state snapshot and change counter
+static KbdState g_kbd_state = {0};
+static uint32_t g_kbd_state_ver = 0;
+
+void kbd_state_update(bool force)
+{
+    KbdState s = {
+        .nkro_enabled = nkro_enabled,
+        .base_layer   = layer_state.base_layer,
+        .active_layer = keymap_get_active_layer(),
+        .stack_size   = layer_state.size,
+    };
+    if (force || memcmp(&s, &g_kbd_state, sizeof(KbdState)) != 0) {
+        g_kbd_state = s;
+        g_kbd_state_ver++;
+    }
+}
+
+void keymap_get_kbd_state(KbdState* out)
+{
+    if (!out) return;
+    // Ensure we return a consistent snapshot
+    kbd_state_update(false);
+    *out = g_kbd_state;
+}
+
+uint32_t keymap_get_kbd_state_version(void)
+{
+    kbd_state_update(false);
+    return g_kbd_state_ver;
+}
+
+void keymap_init(void)
+{
+    // Initialize HID report buffers
+    // Force first frame to send by initializing prev to different values
+    memset(prev6, 0xFF, sizeof(prev6));
+    memset(prev_nkro, 0xFF, sizeof(prev_nkro));
+
+    memset(&layer_state, 0, sizeof(layer_state));
+    memset(to_pressed, 0, sizeof(to_pressed));
+    memset(layer_key_pressed, 0, sizeof(layer_key_pressed));
+    memset(key_state, 0, sizeof(key_state));
+    memset(oneshot_tap, 0, sizeof(oneshot_tap));
+
+    // Default to 6KRO mode
+    nkro_enabled = false;
+    kbd_state_update(true);
 }
 
 // ---------------------------
@@ -324,6 +353,7 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
             snprintf(buf, sizeof(buf), "TO(%u)\n", (unsigned)target);
             CDC_SendString(buf);
             print_layer_stack();
+            kbd_state_update(true);
         }
         return report; // Empty report
     }
@@ -348,6 +378,7 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
                 snprintf(buf, sizeof(buf), "MO(%d) ", target);
                 CDC_SendString(buf);
                 print_layer_stack();
+                kbd_state_update(true);
             }
         }
         if (!pressed && stack_idx >= 0)
@@ -365,6 +396,7 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
             snprintf(buf, sizeof(buf), "~MO(%d) ", released);
             CDC_SendString(buf);
             print_layer_stack();
+            kbd_state_update(true);
         }
         return report; // Empty report
     }
@@ -398,6 +430,7 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
                     snprintf(buf, sizeof(buf), "TG(%d) ON ", target);
                     CDC_SendString(buf);
                     print_layer_stack();
+                    kbd_state_update(true);
                 }
             }
             else
@@ -415,6 +448,7 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
                 snprintf(buf, sizeof(buf), "TG(%d) OFF ", released);
                 CDC_SendString(buf);
                 print_layer_stack();
+                kbd_state_update(true);
             }
         }
         return report; // Empty report
@@ -476,6 +510,7 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
                             char buf[32];
                             snprintf(buf, sizeof(buf), "MTL(%u) OFF\n", (unsigned)released);
                             CDC_SendString(buf);
+                            kbd_state_update(true);
                         }
                     }
                 }

@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "pico/bootrom.h"
+// TinyUSB (only need tusb.h types here)
 #include "tusb.h"
 
 // --------------------
@@ -242,6 +243,21 @@ typedef struct {
 
 // External NKRO flag
 extern bool nkro_enabled;
+
+// -----------------------------
+// Public keyboard state snapshot (for OLED/status)
+// -----------------------------
+typedef struct {
+    bool nkro_enabled;       // true = NKRO, false = 6KRO
+    uint8_t base_layer;      // current base layer (set by TO)
+    uint8_t active_layer;    // top-most active layer (MO/TG/MT resolved)
+    uint8_t stack_size;      // number of active layer entries (MO/TG/MT holds)
+} KbdState;
+
+// Return the latest keyboard state snapshot
+void keymap_get_kbd_state(KbdState* out);
+// Monotonic version that increments when state changes (layers/NKRO)
+uint32_t keymap_get_kbd_state_version(void);
 
 // Keymap storage
 extern uint32_t keymaps[MAX_LAYERS][MATRIX_ROWS][MATRIX_COLS];

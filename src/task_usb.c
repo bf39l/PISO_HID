@@ -7,6 +7,7 @@
 void USB_Task(void *pvParameters)
 {
     KeyEvent ev;
+    uint32_t last_ver = 0;
 
     for (;;) {
         tud_task();
@@ -16,6 +17,18 @@ void USB_Task(void *pvParameters)
         // --- Process key events from queue ---
         while (xQueueReceive(xKeyEventQueue, &ev, 0) == pdPASS) {
             keymap_process_queue_item(ev.row, ev.col, ev.pressed);
+        }
+
+        // Publish KbdState changes to OLED (decoupled)
+        uint32_t ver = keymap_get_kbd_state_version();
+        if (ver != last_ver && xKbdStateQueue) {
+            last_ver = ver;
+            KbdState s;
+            keymap_get_kbd_state(&s);
+            if (xQueueSend(xKbdStateQueue, &s, 0) != pdPASS) {
+                (void)xQueueReceive(xKbdStateQueue, &s, 0);
+                (void)xQueueSend(xKbdStateQueue, &s, 0);
+            }
         }
 
         keymap_send_hid_report();

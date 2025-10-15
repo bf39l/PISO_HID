@@ -1,19 +1,43 @@
 #include "common.h"
 
-static void draw_shift_bits_oled(ShiftRegister64 bits, const ASCIIFont *font) {
+static void draw_kbd_state(const KbdState *s)
+{
+    char line[32];
+    // NKRO/6KRO mode at top-right (right-aligned)
+    int n = snprintf(line, sizeof(line), "%s", s->nkro_enabled ? "NKRO" : "6KRO");
+    int x = 128 - n * afont8x6.w; if (x < 0) x = 0;
+    OLED_PrintASCIIString((uint8_t)x, 0, line, &afont8x6, OLED_COLOR_NORMAL);
+
+    // Layers right-aligned below
+    n = snprintf(line, sizeof(line), "L%d/%d (%d)", s->base_layer, s->active_layer, s->stack_size);
+    x = 128 - n * afont8x6.w; if (x < 0) x = 0;
+    OLED_PrintASCIIString((uint8_t)x, afont8x6.h, line, &afont8x6, OLED_COLOR_NORMAL);
+}
+
+static void draw_shift_bits_oled(ShiftRegister64 bits, const ASCIIFont *font)
+{
     char lines[NUM_SHIFT_REGISTERS][MAX_BITS + 1];
     shift_bits_to_strings(bits, lines);
 
     for (int i = 0; i < NUM_SHIFT_REGISTERS; i++) {
         char label[16];
         snprintf(label, sizeof(label), "SR%d:%s", i + 1, lines[i]);
-        OLED_PrintASCIIString(0, i * font->h, label, font, OLED_COLOR_NORMAL);
+        OLED_PrintASCIIString(0, i * font->h + afont8x6.h + 1, label, font, OLED_COLOR_NORMAL);
     }
-    OLED_PrintASCIIString(14 * font->w+1, 28, "PISO", &afont8x6, OLED_COLOR_NORMAL);
+}
+
+// Render a full frame with current state and last shift-register snapshot
+static inline void render_main(const KbdState *state, const ShiftRegister64 *sr)
+{
+    OLED_NewFrame();
+    draw_kbd_state(state);
+    draw_shift_bits_oled(*sr, &afont8x6);
+    OLED_ShowFrame();
 }
 
 // Draw splash screen
-static void draw_splash(void) {
+static void draw_splash(void)
+{
     OLED_NewFrame();
     OLED_DrawEllipse(128/2-1, 64/2, 32, 18, OLED_COLOR_NORMAL);
     OLED_DrawEllipse(128/2-1, 64/2, 16, 30, OLED_COLOR_NORMAL);
@@ -71,10 +95,6 @@ static void draw_cute_kiss_anim(uint32_t frame)
         OLED_DrawFilledCircle((uint8_t)(fx + 6), (uint8_t)(fy - 4), 1, OLED_COLOR_NORMAL);
     }
 
-    // Cheeks
-    // OLED_DrawFilledCircle((uint8_t)(fx - 8), (uint8_t)(fy + 2), 1, OLED_COLOR_NORMAL);
-    // OLED_DrawFilledCircle((uint8_t)(fx + 8), (uint8_t)(fy + 2), 1, OLED_COLOR_NORMAL);
-
     // Puckering mouth: small pulsating dot near the right side
     int p = frame % 40;
     int puck = (p < 20) ? p : (40 - p); // 0..20..0
@@ -104,16 +124,28 @@ void OLED_Task(void *pvParameters)
     draw_splash();
 
     ShiftRegister64 recv;
+    ShiftRegister64 last_recv = {0};
+    bool have_recv = false;
+    KbdState kbd_state = (KbdState){0};
     uint32_t anim_frame = 0;
     bool in_idle_anim = false;
 
     for (;;) {
+        // Drain to the latest keyboard state
+        bool kbd_state_changed = false;
+        while (xQueueReceive(xKbdStateQueue, &kbd_state, 0) == pdTRUE) {
+            kbd_state_changed = true;
+        }
+        // If only state changed, redraw using the last snapshot to keep alignment
+        if (kbd_state_changed && have_recv && !in_idle_anim) {
+            render_main(&kbd_state, &last_recv);
+        }
+
         if (!in_idle_anim) {
-            // Wait up to 5 seconds for a debounced change snapshot
+            // Wait up to 10s for a debounced change snapshot
             if (xQueueReceive(xShiftRegisterOutputQueue_OLED, &recv, pdMS_TO_TICKS(10000)) == pdTRUE) {
-                OLED_NewFrame();
-                draw_shift_bits_oled(recv, &afont8x6);
-                OLED_ShowFrame();
+                last_recv = recv; have_recv = true;
+                render_main(&kbd_state, &last_recv);
             } else {
                 // Enter idle animation
                 in_idle_anim = true;
@@ -122,11 +154,12 @@ void OLED_Task(void *pvParameters)
         } else {
             // Run one animation frame
             draw_cute_kiss_anim(anim_frame++);
-            // Check quickly if a new snapshot arrived; if so, exit idle mode
+            // On new snapshot, exit idle and render both
             if (xQueueReceive(xShiftRegisterOutputQueue_OLED, &recv, 0) == pdTRUE) {
-                OLED_NewFrame();
-                draw_shift_bits_oled(recv, &afont8x6);
-                OLED_ShowFrame();
+                last_recv = recv; have_recv = true;
+                // Drain to latest kbd state before drawing
+                while (xQueueReceive(xKbdStateQueue, &kbd_state, 0) == pdTRUE) {}
+                render_main(&kbd_state, &last_recv);
                 in_idle_anim = false;
                 continue;
             }
