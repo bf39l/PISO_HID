@@ -29,24 +29,53 @@ jobs:
             git -C lib/FreeRTOS-Kernel checkout -q FETCH_HEAD
           fi
 
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+          restore-keys: |
+            ccache-${{ runner.os }}-
+
+      - name: Cache Pico SDK downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/_deps
+            build/pico-sdk
+          key: pico-sdk-${{ runner.os }}-${{ hashFiles('pico_sdk_import.cmake') }}
+          restore-keys: |
+            pico-sdk-${{ runner.os }}-
+
       - name: Install toolchain and build deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi
+          sudo apt-get install -y cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi ccache
+
+      - name: Setup ccache
+        run: |
+          mkdir -p ~/.cache/ccache
+          ccache -M 500M
+          ccache -z || true
 
       - name: Configure (CMake + Ninja)
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DPICO_SDK_FETCH_FROM_GIT=1
+            -DPICO_SDK_FETCH_FROM_GIT=1 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build
         run: cmake --build build --parallel
 
+      - name: ccache stats
+        run: ccache -s || true
+
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: PISO_HID-firmware
+          name: PISO_HID-firmware-${{ github.sha }}
           path: |
             build/*.uf2
             build/*.elf
@@ -55,3 +84,15 @@ jobs:
             build/*.dis
             build/*.map
           if-no-files-found: error
+
+      - name: Upload release (tag only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/*.uf2
+            build/*.elf
+            build/*.hex
+            build/*.bin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
