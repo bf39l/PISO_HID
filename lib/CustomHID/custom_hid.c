@@ -42,6 +42,7 @@ static bool to_pressed[MATRIX_ROWS][MATRIX_COLS] = {{0}};
 static bool layer_key_pressed[MATRIX_ROWS][MATRIX_COLS] = {{0}}; // Unified tracking
 static KeyState key_state[MATRIX_COLS];                          // Track key state across the keyboard
 static bool oneshot_tap[MATRIX_COLS];
+static uint8_t oneshot_mods[MATRIX_COLS]; // One-shot modifiers for CH keys
 
 // HID report buffers
 uint8_t modifier, keycodes6[SIXKRO_BYTES_TOTAL], nkro_bitmap[NKRO_BYTES_TOTAL];
@@ -124,6 +125,7 @@ void keymap_init(void)
     memset(layer_key_pressed, 0, sizeof(layer_key_pressed));
     memset(key_state, 0, sizeof(key_state));
     memset(oneshot_tap, 0, sizeof(oneshot_tap));
+    memset(oneshot_mods, 0, sizeof(oneshot_mods));
 
     // Default to 6KRO mode
     nkro_enabled = false;
@@ -576,12 +578,24 @@ void keymap_build_hid_reports(uint8_t *modifier_out, uint8_t keycodes6[6], uint8
     int k6 = 0;
     for (int c = 0; c < MATRIX_COLS; c++)
     {
+        // Include key if either pressed OR in one-shot mode (MT tap, CH)
         bool active = key_state[c].pressed || oneshot_tap[c];
         if (!active)
             continue;
+        
         uint32_t kc = key_state[c].cached_kc;
+        
+        // Chord keys: extract and apply modifiers
+        if (IS_CH(kc))
+        {
+            uint8_t mods = CH_MODS(kc);
+            uint8_t key = CH_KEY(kc);
+            *modifier_out |= mods;
+            kc = key;
+        }
+        
         if (kc == KC_NO || kc == KC_TRNS)
-        { /* keep oneshot until send */
+        {
             continue;
         }
         // modifiers
@@ -603,11 +617,10 @@ void keymap_build_hid_reports(uint8_t *modifier_out, uint8_t keycodes6[6], uint8
             uint16_t bi = kc - NKRO_USAGE_MIN;
             nkro_bitmap[bi / 8] |= (1u << (bi % 8));
         }
-        // Do NOT clear oneshot here; wait until report is successfully sent
     }
 }
 
-// Clear one-shot taps after a successful HID report send
+// Clear one-shot flags after report sent
 void keymap_on_report_sent(void)
 {
     for (int c = 0; c < MATRIX_COLS; c++)
@@ -615,7 +628,7 @@ void keymap_on_report_sent(void)
         if (oneshot_tap[c])
         {
             oneshot_tap[c] = false;
-            key_state[c].cached_kc = KC_NO; // ensure next frame is release/idle
+            key_state[c].cached_kc = KC_NO;
         }
     }
 }

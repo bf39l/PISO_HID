@@ -208,7 +208,9 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 // Helpers to decode
 #define MT_TYPE_RAW(code)   ( ((uint32_t)(code) >> 16) & 0xFF )
 #define MT_PREFIX_BYTE      ( ((uint32_t)(MT_PREFIX) >> 16) & 0xFF )
-#define IS_MT(code)         ( MT_TYPE_RAW(code) >= MT_PREFIX_BYTE && MT_TYPE_RAW(code) <= (MT_PREFIX_BYTE + MT_MAX_TYPE) )
+// IS_MT checks if type byte is exactly 1 (0x09) or 2 (0x0A)
+// This avoids matching CH (0x82000) which has type byte 0 (0x08)
+#define IS_MT(code)         ( (((uint32_t)(code) >> 16) & 0xFF) == 0x09 || (((uint32_t)(code) >> 16) & 0xFF) == 0x0A )
 #define MT_TYPE(code)       ( (uint8_t)( MT_TYPE_RAW(code) - MT_PREFIX_BYTE ) )
 #define MT_PAYLOAD(code)    ( ((uint32_t)(code) >> 8)  & 0xFF )
 #define MT_KEY(code)        ( ((uint32_t)(code)      ) & 0xFF )
@@ -217,6 +219,23 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 
 // Tap timeout (ms)
 #define MT_TAP_TIMEOUT_MS   200
+
+// -----------------------------
+// Chord: emit modifiers + key once on tap (supports multiple modifiers)
+// Encoding layout (32-bit):
+// Using very high base 0xA0000 to be completely separate from MT (0x70000)
+// [ SAFE_RANGE + 0xA0000 ] | [ MODMASK(8) ] | [ KEY(8) ]
+#define CH_TAG_BASE      (0xA0000)
+#define CH_PREFIX        ( (uint32_t)(SAFE_RANGE + CH_TAG_BASE) )
+#define CH_ENC(modmask, key) ( (uint32_t)(CH_PREFIX) \
+                              | ((uint32_t)((modmask) & 0xFF) << 8) \
+                              | ((uint32_t)((key)     & 0xFF)) )
+#define CH(modmask, key)     CH_ENC((modmask), (key))
+
+// Helpers - check if code is in CH range (0xB0000-0xBFFFF)
+#define IS_CH(code)        ( (((uint32_t)(code) >> 16) & 0xFF) == 0x0B )
+#define CH_MODS(code)      ( (uint8_t)( ((uint32_t)(code) >> 8) & 0xFF ) )
+#define CH_KEY(code)       ( (uint8_t)( ((uint32_t)(code)     ) & 0xFF ) )
 
 // ==================== EXISTING KEYMAP DECLARATIONS ====================
 
