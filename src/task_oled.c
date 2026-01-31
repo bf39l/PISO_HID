@@ -22,8 +22,10 @@ static void draw_shift_bits_oled(ShiftRegister64 bits, const ASCIIFont *font)
     for (int i = 0; i < NUM_SHIFT_REGISTERS; i++) {
         char label[16];
         snprintf(label, sizeof(label), "SR%d:%s", i + 1, lines[i]);
-        OLED_PrintASCIIString(0, i * font->h + afont8x6.h + 1, label, font, OLED_COLOR_NORMAL);
-    }
+        // SR1 on same line as NKRO/6KRO (Y=0), then SR2 onwards shifted up one line
+        uint8_t y = (i == 0) ? 0 : (uint8_t)((i - 1) * font->h + afont8x6.h);
+        OLED_PrintASCIIString(0, y, label, font, OLED_COLOR_NORMAL);
+    }  
 }
 
 // Render a full frame with current state and last shift-register snapshot
