@@ -12,6 +12,14 @@ static void draw_kbd_state(const KbdState *s)
     n = snprintf(line, sizeof(line), "L%d/%d (%d)", s->base_layer, s->active_layer, s->stack_size);
     x = 128 - n * afont8x6.w; if (x < 0) x = 0;
     OLED_PrintASCIIString((uint8_t)x, afont8x6.h, line, &afont8x6, OLED_COLOR_NORMAL);
+
+    // Layer name on right side (below layer info, right-aligned)
+    if (s->active_layer < MAX_LAYERS) {
+        const char* name = layer_names[s->active_layer];
+        int name_len = strlen(name);
+        x = 128 - name_len * afont8x6.w; if (x < 0) x = 0;
+        OLED_PrintASCIIString((uint8_t)x, afont8x6.h * 2, (char*)name, &afont8x6, OLED_COLOR_NORMAL);
+    }
 }
 
 static void draw_shift_bits_oled(ShiftRegister64 bits, const ASCIIFont *font)
