@@ -198,17 +198,25 @@ static bool is_layer_switch_key(uint32_t kc)
 // ---------------------------
 // Minimal Mod-Tap state (per pressed key position)
 // ---------------------------
+// Minimal Mod-Tap state (per pressed key position)
+// New behavior:
+// 1. Press → Another key pressed: immediately activate hold action + other key
+// 2. Press → Release within timeout: send tap key
+// 3. Press → Hold past timeout (no other key): activate hold action
+// ---------------------------
 typedef struct
 {
     bool active;
     uint8_t row, col;
     uint32_t mt_code;
     uint32_t t_down_ms;
-    bool hold_sent;
+    bool hold_activated;  // True if hold action has been activated
+    bool tap_released;    // True if this MT key was released
 } MTSlot;
 
 #define MT_MAX_SLOTS 8
 static MTSlot mt_slots[MT_MAX_SLOTS];
+static bool mt_other_key_pressed = false; // Flag: another key pressed while MT active
 
 static void mt_reset_all(void) { memset(mt_slots, 0, sizeof(mt_slots)); }
 
@@ -230,11 +238,13 @@ static int mt_alloc(uint8_t row, uint8_t col, uint32_t mt)
             mt_slots[i].col = col;
             mt_slots[i].mt_code = mt;
             mt_slots[i].t_down_ms = to_ms_since_boot(get_absolute_time());
-            mt_slots[i].hold_sent = false;
+            mt_slots[i].hold_activated = false;
+            mt_slots[i].tap_released = false;
             return i;
         }
     return -1;
 }
+
 static void mt_free_idx(int idx)
 {
     if (idx >= 0 && idx < MT_MAX_SLOTS)
@@ -243,53 +253,123 @@ static void mt_free_idx(int idx)
     }
 }
 
+// Check if any MT key is currently held (not released)
+static bool mt_any_held(void)
+{
+    for (int i = 0; i < MT_MAX_SLOTS; i++)
+        if (mt_slots[i].active && !mt_slots[i].tap_released)
+            return true;
+    return false;
+}
+
+// Activate hold action for an MT key
+static void mt_activate_hold(int idx)
+{
+    if (idx < 0 || idx >= MT_MAX_SLOTS || !mt_slots[idx].active)
+        return;
+    
+    if (mt_slots[idx].hold_activated)
+        return; // Already activated
+    
+    uint32_t mt = mt_slots[idx].mt_code;
+    uint8_t mt_type = MT_TYPE(mt);
+    
+    if (mt_type == MT_TYPE_MODS)
+    {
+        uint8_t m = MT_PAYLOAD(mt);
+        // Cache combined modifiers using special marker 0xF000|bits
+        key_state[mt_slots[idx].col].pressed = true;
+        key_state[mt_slots[idx].col].row = mt_slots[idx].row;
+        key_state[mt_slots[idx].col].cached_kc = 0xF000 | m; // marker + bits
+    }
+    else if (mt_type == MT_TYPE_LAYER)
+    {
+        uint8_t layer = MT_PAYLOAD(mt);
+        // Momentary layer on hold
+        if (layer_state.size < MAX_LAYER_STACK)
+        {
+            layer_state.stack[layer_state.size].activated_layer = layer;
+            layer_state.stack[layer_state.size].source_layer = keymap_get_active_layer();
+            layer_state.stack[layer_state.size].row = mt_slots[idx].row;
+            layer_state.stack[layer_state.size].col = mt_slots[idx].col;
+            layer_state.stack[layer_state.size].type = LAYER_TYPE_MO;
+            layer_state.size++;
+            // Log MT layer activation
+            char buf[32];
+            snprintf(buf, sizeof(buf), "MTL(%u) ON\n", (unsigned)layer);
+            CDC_SendString(buf);
+            // Mark state changed
+            kbd_state_update(true);
+        }
+    }
+    
+    mt_slots[idx].hold_activated = true;
+}
+
+// Deactivate hold action for an MT key
+static void mt_deactivate_hold(int idx)
+{
+    if (idx < 0 || idx >= MT_MAX_SLOTS || !mt_slots[idx].active)
+        return;
+    
+    if (!mt_slots[idx].hold_activated)
+        return; // Not activated yet
+    
+    uint32_t mt = mt_slots[idx].mt_code;
+    uint8_t mt_type = MT_TYPE(mt);
+    
+    if (mt_type == MT_TYPE_MODS)
+    {
+        // Clear combined modifier cache
+        key_state[mt_slots[idx].col].pressed = false;
+        key_state[mt_slots[idx].col].cached_kc = KC_NO;
+    }
+    else if (mt_type == MT_TYPE_LAYER)
+    {
+        // Find and remove this layer from stack
+        int si = find_in_stack(mt_slots[idx].row, mt_slots[idx].col);
+        if (si >= 0)
+        {
+            uint8_t released = layer_state.stack[si].activated_layer;
+            for (int i = si; i < layer_state.size - 1; i++)
+                layer_state.stack[i] = layer_state.stack[i + 1];
+            layer_state.size--;
+            // Log MT layer deactivation
+            char buf[32];
+            snprintf(buf, sizeof(buf), "MTL(%u) OFF\n", (unsigned)released);
+            CDC_SendString(buf);
+            kbd_state_update(true);
+        }
+    }
+    
+    mt_slots[idx].hold_activated = false;
+}
+
 static void mt_tick_timeout(void)
 {
     uint32_t now = to_ms_since_boot(get_absolute_time());
+    
+    // Check for timeout on held MT keys
     for (int i = 0; i < MT_MAX_SLOTS; i++)
     {
-        if (!mt_slots[i].active || mt_slots[i].hold_sent)
+        if (!mt_slots[i].active || mt_slots[i].hold_activated || mt_slots[i].tap_released)
             continue;
+        
         uint32_t mt = mt_slots[i].mt_code;
         if (!IS_MT(mt))
         {
             mt_free_idx(i);
             continue;
         }
+        
         uint32_t dt = now - mt_slots[i].t_down_ms;
+        
+        // ✅ FIX: Always activate hold at timeout, regardless of mt_other_key_pressed
+        // mt_other_key_pressed is for the COMBO path (already activated early)
+        // Timeout path should activate whenever timeout passes
         if (dt > MT_TAP_TIMEOUT_MS)
         {
-            // send hold action
-            uint8_t mt_type = MT_TYPE(mt);
-            if (mt_type == MT_TYPE_MODS)
-            {
-                uint8_t m = MT_PAYLOAD(mt);
-                // Cache combined modifiers using special marker 0xF000|bits for build step
-                key_state[mt_slots[i].col].pressed = true;
-                key_state[mt_slots[i].col].row = mt_slots[i].row;
-                key_state[mt_slots[i].col].cached_kc = 0xF000 | m; // marker + bits
-            }
-            else if (mt_type == MT_TYPE_LAYER)
-            {
-                uint8_t layer = MT_PAYLOAD(mt);
-                // Momentary layer on hold
-                if (layer_state.size < MAX_LAYER_STACK)
-                {
-                    layer_state.stack[layer_state.size].activated_layer = layer;
-                    layer_state.stack[layer_state.size].source_layer = keymap_get_active_layer();
-                    layer_state.stack[layer_state.size].row = mt_slots[i].row;
-                    layer_state.stack[layer_state.size].col = mt_slots[i].col;
-                    layer_state.stack[layer_state.size].type = LAYER_TYPE_MO;
-                    layer_state.size++;
-                    // Log MT layer activation
-                    char buf[32];
-                    snprintf(buf, sizeof(buf), "MTL(%u) ON\n", (unsigned)layer);
-                    CDC_SendString(buf);
-                    // Mark state changed so USB task publishes to OLED
-                    kbd_state_update(true);
-                }
-            }
-            mt_slots[i].hold_sent = true;
+            mt_activate_hold(i);
         }
     }
 }
@@ -302,6 +382,60 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
     KeyReport report = (KeyReport){0};
     if (row >= MATRIX_ROWS || col >= MATRIX_COLS)
         return report;
+
+    // ✅ CRITICAL: Check if non-MT key pressed while MT held BEFORE resolving keycode
+    // This ensures layer is activated BEFORE we resolve the keycode
+    if (pressed && mt_any_held())
+    {
+        // Peek at the keycode that would be resolved to check if it's NOT an MT key
+        int temp_stack_idx = find_in_stack(row, col);
+        uint32_t temp_kc = KC_NO;
+        
+        // Resolve what the keycode would be
+        if (temp_stack_idx >= 0)
+        {
+            temp_kc = keymaps[layer_state.stack[temp_stack_idx].source_layer][row][col];
+        }
+        else
+        {
+            bool has_tg = false;
+            for (int i = 0; i < layer_state.size; i++)
+            {
+                if (layer_state.stack[i].type == LAYER_TYPE_TG)
+                {
+                    has_tg = true;
+                    break;
+                }
+            }
+            uint8_t peek_layer;
+            if (has_tg)
+            {
+                peek_layer = keymap_resolve_layer(row, col);
+            }
+            else
+            {
+                peek_layer = layer_state.base_layer;
+                if (!is_layer_switch_key(keymaps[peek_layer][row][col]))
+                {
+                    peek_layer = keymap_resolve_layer(row, col);
+                }
+            }
+            temp_kc = keymaps[peek_layer][row][col];
+        }
+        
+        // If it's NOT an MT key, activate MT hold immediately
+        if (!IS_MT(temp_kc))
+        {
+            mt_other_key_pressed = true;
+            for (int i = 0; i < MT_MAX_SLOTS; i++)
+            {
+                if (mt_slots[i].active && !mt_slots[i].hold_activated && !mt_slots[i].tap_released)
+                {
+                    mt_activate_hold(i);
+                }
+            }
+        }
+    }
 
     // Resolve raw kc with existing layer logic
     int stack_idx = find_in_stack(row, col);
@@ -458,11 +592,30 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
         return report; // Empty report
     }
 
-    // Mod-Tap (new minimal path)
+    // Mod-Tap (new behavior):
+    // 1. Press → Another key pressed: immediately activate hold + other key
+    // 2. Press → Release within timeout: send tap key
+    // 3. Press → Hold past timeout (no other key): activate hold
     if (IS_MT(kc))
     {
         if (pressed)
         {
+            // Check if any MT key is already held
+            if (mt_any_held())
+            {
+                // Another key pressed while MT is held, activate hold immediately
+                mt_other_key_pressed = true;
+                // Find and activate the MT key's hold action
+                for (int i = 0; i < MT_MAX_SLOTS; i++)
+                {
+                    if (mt_slots[i].active && !mt_slots[i].hold_activated && !mt_slots[i].tap_released)
+                    {
+                        mt_activate_hold(i);
+                    }
+                }
+            }
+            
+            // Allocate new MT slot if not already present
             if (mt_find(row, col) < 0)
             {
                 mt_alloc(row, col, kc);
@@ -470,17 +623,17 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
         }
         else
         {
+            // Release of MT key
             int idx = mt_find(row, col);
             if (idx >= 0)
             {
-                uint32_t mt = mt_slots[idx].mt_code;
-                uint32_t dt = to_ms_since_boot(get_absolute_time()) - mt_slots[idx].t_down_ms;
-                bool use_tap = (dt <= MT_TAP_TIMEOUT_MS) && !mt_slots[idx].hold_sent;
-                if (use_tap)
+                mt_slots[idx].tap_released = true;
+                
+                if (!mt_slots[idx].hold_activated)
                 {
-                    uint8_t tap = MT_KEY(mt);
-                    // Inject one-shot tap into builder
-                    key_state[col].pressed = false; // make sure not latched
+                    // Hold was never activated: send tap key
+                    uint8_t tap = MT_KEY(mt_slots[idx].mt_code);
+                    key_state[col].pressed = false;
                     key_state[col].cached_kc = tap;
                     oneshot_tap[col] = true;
                     if (IS_MODIFIER(tap))
@@ -493,32 +646,17 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
                 }
                 else
                 {
-                    // release hold action
-                    uint8_t mt_type = MT_TYPE(mt);
-                    if (mt_type == MT_TYPE_MODS)
-                    {
-                        // clear combined modifier cache
-                        key_state[col].pressed = false;
-                        key_state[col].cached_kc = KC_NO;
-                    }
-                    else if (mt_type == MT_TYPE_LAYER)
-                    {
-                        int si = find_in_stack(row, col);
-                        if (si >= 0)
-                        {
-                            uint8_t released = layer_state.stack[si].activated_layer;
-                            for (int i = si; i < layer_state.size - 1; i++)
-                                layer_state.stack[i] = layer_state.stack[i + 1];
-                            layer_state.size--;
-                            // Log MT layer deactivation
-                            char buf[32];
-                            snprintf(buf, sizeof(buf), "MTL(%u) OFF\n", (unsigned)released);
-                            CDC_SendString(buf);
-                            kbd_state_update(true);
-                        }
-                    }
+                    // Hold was activated: deactivate it
+                    mt_deactivate_hold(idx);
                 }
+                
                 mt_free_idx(idx);
+                
+                // Reset the other-key-pressed flag if no MT keys are held
+                if (!mt_any_held())
+                {
+                    mt_other_key_pressed = false;
+                }
             }
         }
         // run timeout tick each event
