@@ -21,7 +21,7 @@ uint32_t keymaps[MAX_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
             KC_TAB,                                     KC_Q, KC_W, KC_F, KC_P, KC_G, KC_LBRACKET,    KC_BSLASH,                                       KC_J, KC_L, KC_U,     KC_Y,   KC_SCOLON, KC_EQUAL,
             MT(MD_LCTRL | MD_LSHIFT | MD_LALT, KC_ESC), KC_A, KC_R, KC_S, KC_T, KC_D, KC_RBRACKET,    KC_QUOTE,                                        KC_H, KC_N, KC_E,     KC_I,   KC_O,      KC_ENTER,
             KC_LSHIFT,                                  KC_Z, KC_X, KC_C, KC_V, KC_B,                                                                  KC_K, KC_M, KC_COMMA, KC_DOT, KC_SLASH,  KC_RSHIFT,
-            KC_LCTRL,       KC_LALT,         KC_LGUI,                       KC_SPACE, KC_BSPACE,      TG(3), MT(2, KC_SPACE), KC_RGUI, KC_RALT, KC_RCTRL
+            KC_LCTRL,       KC_LALT,         KC_LGUI,                MT(2, KC_SPACE), KC_BSPACE,      TG(3), MT(2, KC_SPACE), KC_RGUI, KC_RALT, KC_RCTRL
         }
     },
     // --- Layer 1: QWERTY ---
@@ -31,7 +31,7 @@ uint32_t keymaps[MAX_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
             KC_TAB,                                     KC_Q, KC_W, KC_E, KC_R, KC_T, KC_LBRACKET,    KC_BSLASH,                                       KC_Y, KC_U, KC_I,     KC_O,   KC_P,      KC_EQUAL,
             MT(MD_LCTRL | MD_LSHIFT | MD_LALT, KC_ESC), KC_A, KC_S, KC_D, KC_F, KC_G, KC_RBRACKET,    KC_QUOTE,                                        KC_H, KC_J, KC_K,     KC_L,   KC_SCOLON, KC_ENTER,
             KC_LSHIFT,                                  KC_Z, KC_X, KC_C, KC_V, KC_B,                                                                  KC_N, KC_M, KC_COMMA, KC_DOT, KC_SLASH,  KC_RSHIFT,
-            KC_LCTRL,       KC_LALT,         KC_LGUI,                       KC_SPACE, KC_BSPACE,      TG(3), MT(2, KC_SPACE), KC_RGUI, KC_RALT, KC_RCTRL
+            KC_LCTRL,       KC_LALT,         KC_LGUI,                MT(2, KC_SPACE), KC_BSPACE,      TG(3), MT(2, KC_SPACE), KC_RGUI, KC_RALT, KC_RCTRL
         }
     },
     // --- Layer 2: Function ---
@@ -41,7 +41,7 @@ uint32_t keymaps[MAX_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
             KC_TAB,    KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_LBRACKET,                                        KC_BSLASH, KC_TRNS,  CH(MD_LALT, KC_LEFT), KC_UP,    CH(MD_LALT, KC_RIGHT), KC_TRNS, KC_TRNS,
             KC_CAPS,   KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_RBRACKET,                                        KC_QUOTE,  KC_TRNS,  KC_LEFT,              KC_DOWN,  KC_RIGHT,              KC_TRNS, KC_TRNS,
             KC_LSHIFT, KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,                                                                   KC_TRNS,  CH(MD_LGUI, KC_LEFT), KC_TRNS,  CH(MD_LGUI, KC_RIGHT), KC_TRNS, KC_RSHIFT,
-            KC_LCTRL,  KC_LALT, KC_LGUI,                   KC_TRNS, KC_DELETE,                                                         TG(3),      KC_TRNS, KC_RGUI, KC_RALT, KC_RCTRL
+            KC_LCTRL,  KC_LALT, KC_LGUI,                               KC_TRNS,    KC_DELETE,                                          TG(3),     KC_TRNS, KC_RGUI, KC_RALT, KC_RCTRL
         }
     },
     // --- Layer 3: Config ---

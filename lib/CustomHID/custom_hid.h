@@ -218,7 +218,7 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 #define MT_IS_LAYER(code)   ( IS_MT(code) && MT_TYPE(code) == MT_TYPE_LAYER )
 
 // Tap timeout (ms)
-#define MT_TAP_TIMEOUT_MS   130 // 200
+#define MT_TAP_TIMEOUT_MS   200 // 200
 
 // -----------------------------
 // Chord: emit modifiers + key once on tap (supports multiple modifiers)

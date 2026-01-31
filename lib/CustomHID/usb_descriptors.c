@@ -71,7 +71,7 @@ bool HID_SendKeyboard6KRO(uint8_t modifier, uint8_t keycodes[6]) {
     if (tud_hid_n_ready(0)) {
         uint8_t report[8] = {modifier, 0, keycodes[0], keycodes[1], keycodes[2], keycodes[3], keycodes[4], keycodes[5]};
         tud_hid_n_report(0, 1, report, 8); // report ID 1
-        CDC_SendString("Sent 6KRO\r\n");
+        // CDC_SendString("Sent 6KRO\r\n");
         return true;
     }
     return false;
@@ -83,7 +83,7 @@ bool HID_SendKeyboardNKRO(uint8_t modifier, const uint8_t nkro_bitmap[NKRO_BYTES
         report[0] = modifier;
         memcpy(&report[1], nkro_bitmap, NKRO_BYTES_TOTAL);
         tud_hid_n_report(0, 2, report, sizeof(report)); // send Report ID 2
-        CDC_SendString("Sent NKRO\r\n");
+        // CDC_SendString("Sent NKRO\r\n");
         return true;
     }
     return false;
