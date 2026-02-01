@@ -675,8 +675,26 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
         return report;
     }
 
+    // Handle KC_TRNS: fall through to base layer
+    if (kc == KC_TRNS)
+    {
+        // Look up the keycode from the base layer
+        uint32_t base_kc = keymaps[layer_state.base_layer][row][col];
+        
+        // Recursively resolve in case base layer also has KC_TRNS
+        // (though that would be unusual for the base layer)
+        if (base_kc != KC_TRNS && base_kc != KC_NO)
+        {
+            kc = base_kc;
+        }
+        else
+        {
+            kc = KC_NO;
+        }
+    }
+
     // Normal key path (cache for report builder)
-    if (kc != KC_NO && kc != KC_TRNS)
+    if (kc != KC_NO)
     {
         key_state[col].pressed = pressed;
         key_state[col].row = row;
@@ -732,7 +750,7 @@ void keymap_build_hid_reports(uint8_t *modifier_out, uint8_t keycodes6[6], uint8
             kc = key;
         }
         
-        if (kc == KC_NO || kc == KC_TRNS)
+        if (kc == KC_NO)
         {
             continue;
         }
