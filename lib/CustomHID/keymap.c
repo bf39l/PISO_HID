@@ -37,10 +37,10 @@ uint32_t keymaps[MAX_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
     // --- Layer 2: Function ---
     {
         {
-            KC_TRNS,   KC_F1,      KC_F2,      KC_F3,      KC_F4,      KC_F5,      KC_TRNS,           KC_F12,    KC_F6,   KC_F7,     KC_F8,   KC_F9,    KC_F10,  KC_F11,
-            KC_TRNS,   KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,           KC_TRNS,   KC_HOME, KC_PGDOWN, KC_PGUP, KC_END,   KC_TRNS, KC_TRNS,
-            KC_CAPS,   KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,           KC_TRNS,   KC_LEFT, KC_DOWN,   KC_UP,   KC_RIGHT, KC_TRNS, KC_TRNS,
-            KC_TRNS,   KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,                                  KC_TRNS, KC_TRNS,   KC_TRNS, KC_TRNS,  KC_TRNS, KC_TRNS,
+            KC_TRNS,   KC_F1,      KC_F2,      KC_F3,      KC_F4,      KC_F5,      KC_TRNS,           KC_TRNS,   KC_F6,   KC_F7,   KC_F8,   KC_F9,    KC_F10,  KC_F11,
+            KC_TRNS,   KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,           KC_PGUP,   KC_HOME, KC_TRNS, KC_UP,   KC_TRNS,  KC_TRNS, KC_F12,
+            KC_CAPS,   KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,           KC_PGDOWN, KC_END,  KC_LEFT, KC_DOWN, KC_RIGHT, KC_TRNS, KC_TRNS,
+            KC_TRNS,   KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,    KC_TRNS,                                  KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,  KC_TRNS, KC_TRNS,
             KC_TRNS,   KC_TRNS,    KC_TRNS,                            KC_TRNS,    KC_DELETE,         KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS
         } // CH(MD_LALT, KC_LEFT)
     },
