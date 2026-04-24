@@ -53,10 +53,25 @@ bool process_reset_key(uint32_t kc, bool pressed)
     return false;
 }
 
+bool process_debug_key(uint32_t kc, bool pressed)
+{
+    if (IS_DEBUG_KEY(kc))
+    {
+        if (pressed) return true; // only on key release
+        
+        debug_mode = !debug_mode;
+        CDC_SendString(debug_mode ? "Debug mode ON\n" : "Debug mode OFF\n");
+        
+        return true;
+    }
+    return false;
+}
+
 void handle_functional_keys(uint32_t kc, bool pressed) 
 {
     if (process_nkro_toggle(kc, pressed)) return;
     if (process_bootloader_key(kc, pressed)) return;
     if (process_reset_key(kc, pressed)) return;
-    // Add more functional keys here if needed
+    if (process_debug_key(kc, pressed)) return;
+    // Add more functional key handlers here as needed
 }

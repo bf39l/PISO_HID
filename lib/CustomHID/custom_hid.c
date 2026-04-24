@@ -89,6 +89,7 @@ void kbd_state_update(bool force)
 {
     KbdState s = {
         .nkro_enabled = nkro_enabled,
+        .debug_mode   = debug_mode,
         .base_layer   = layer_state.base_layer,
         .active_layer = keymap_get_active_layer(),
         .stack_size   = layer_state.size,
@@ -129,6 +130,7 @@ void keymap_init(void)
 
     // Default to 6KRO mode
     nkro_enabled = false;
+    debug_mode = false;
     kbd_state_update(true);
 }
 

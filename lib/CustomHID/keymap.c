@@ -50,7 +50,7 @@ uint32_t keymaps[MAX_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
             FN_BOOT,    KC_NO, KC_NO,      KC_NO,   KC_NO,   KC_NO,   KC_NO,      KC_NO,   KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
             FN_RESET,   KC_NO, KC_NO,      KC_NO,   KC_NO,   KC_NO,   KC_NO,      KC_NO,   KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
             FN_NKRO_TG, KC_NO, KC_NO,      KC_NO,   KC_NO,   KC_NO,   KC_NO,      KC_NO,   KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
-            KC_NO,      KC_NO, KC_NO,      KC_NO,   KC_NO,   KC_NO,                        KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
+            FN_DEBUG,   KC_NO, KC_NO,      KC_NO,   KC_NO,   KC_NO,                        KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
             KC_NO,      KC_NO, KC_NO,                        KC_NO,   KC_NO,      KC_NO,   KC_NO, KC_NO, KC_NO, KC_NO
         }
     },

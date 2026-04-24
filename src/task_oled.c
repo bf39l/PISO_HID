@@ -20,6 +20,11 @@ static void draw_kbd_state(const KbdState *s)
         x = 128 - name_len * afont8x6.w; if (x < 0) x = 0;
         OLED_PrintASCIIString((uint8_t)x, afont8x6.h * 2, (char*)name, &afont8x6, OLED_COLOR_NORMAL);
     }
+
+    // Debug mode status (right-aligned below layer name)
+    n = snprintf(line, sizeof(line), "Debug: %s", s->debug_mode ? "1" : "0");
+    x = 128 - n * afont8x6.w; if (x < 0) x = 0;
+    OLED_PrintASCIIString((uint8_t)x, afont8x6.h * 3, line, &afont8x6, OLED_COLOR_NORMAL);
 }
 
 static void draw_shift_bits_oled(ShiftRegister64 bits, const ASCIIFont *font)
@@ -41,7 +46,9 @@ static inline void render_main(const KbdState *state, const ShiftRegister64 *sr)
 {
     OLED_NewFrame();
     draw_kbd_state(state);
-    draw_shift_bits_oled(*sr, &afont8x6);
+    if (state->debug_mode) {
+        draw_shift_bits_oled(*sr, &afont8x6);
+    }
     OLED_ShowFrame();
 }
 

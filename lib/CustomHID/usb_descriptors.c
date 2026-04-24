@@ -17,6 +17,7 @@ typedef struct {
 } keyboard_nkro_report_t;
 
 bool nkro_enabled = false;  // global NKRO state shared
+bool debug_mode = false;    // global debug mode state shared
 
 // -----------------------------
 // HID report descriptors

@@ -164,6 +164,7 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 #define IS_BOOTLOADER_KEY(code) ((code) == FN_BOOT)
 #define IS_NKRO_TOGGLE(code) ((code) == FN_NKRO_TG)
 #define IS_RESET_KEY(code) ((code) == FN_RESET)
+#define IS_DEBUG_KEY(code) ((code) == FN_DEBUG)
 #define IS_KBD_FUNCTIONAL_KEY(code) ((code) == FN_BOOT || (code) == FN_NKRO_TG || (code) == FN_DEBUG || (code) == FN_RESET)
 
 // --------------------
@@ -264,14 +265,16 @@ typedef struct {
     bool kbd_functional_keys;               // kbd functional keys flag (NKRO, bootloader, etc)
 } KeyReport;
 
-// External NKRO flag
+// External flags
 extern bool nkro_enabled;
+extern bool debug_mode;
 
 // -----------------------------
 // Public keyboard state snapshot (for OLED/status)
 // -----------------------------
 typedef struct {
     bool nkro_enabled;       // true = NKRO, false = 6KRO
+    bool debug_mode;         // true = debug shift bits displayed
     uint8_t base_layer;      // current base layer (set by TO)
     uint8_t active_layer;    // top-most active layer (MO/TG/MT resolved)
     uint8_t stack_size;      // number of active layer entries (MO/TG/MT holds)
