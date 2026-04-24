@@ -3,27 +3,29 @@
 static void draw_kbd_state(const KbdState *s)
 {
     char line[32];
-    // NKRO/6KRO mode at top-right (right-aligned)
-    int n = snprintf(line, sizeof(line), "%s", s->nkro_enabled ? "NKRO" : "6KRO");
-    int x = 128 - n * afont8x6.w; if (x < 0) x = 0;
+    int n, x;
+
+    // NKRO/6KRO mode
+    n = snprintf(line, sizeof(line), "%s", s->nkro_enabled ? "NKRO" : "6KRO");
+    x = s->debug_mode ? (128 - n * afont8x6.w) : 0; if (x < 0) x = 0;
     OLED_PrintASCIIString((uint8_t)x, 0, line, &afont8x6, OLED_COLOR_NORMAL);
 
-    // Layers right-aligned below
+    // Layers
     n = snprintf(line, sizeof(line), "L%d/%d (%d)", s->base_layer, s->active_layer, s->stack_size);
-    x = 128 - n * afont8x6.w; if (x < 0) x = 0;
+    x = s->debug_mode ? (128 - n * afont8x6.w) : 0; if (x < 0) x = 0;
     OLED_PrintASCIIString((uint8_t)x, afont8x6.h, line, &afont8x6, OLED_COLOR_NORMAL);
 
-    // Layer name on right side (below layer info, right-aligned)
+    // Layer name
     if (s->active_layer < MAX_LAYERS) {
         const char* name = layer_names[s->active_layer];
         int name_len = strlen(name);
-        x = 128 - name_len * afont8x6.w; if (x < 0) x = 0;
+        x = s->debug_mode ? (128 - name_len * afont8x6.w) : 0; if (x < 0) x = 0;
         OLED_PrintASCIIString((uint8_t)x, afont8x6.h * 2, (char*)name, &afont8x6, OLED_COLOR_NORMAL);
     }
 
-    // Debug mode status (right-aligned below layer name)
+    // Debug mode status
     n = snprintf(line, sizeof(line), "Debug: %s", s->debug_mode ? "1" : "0");
-    x = 128 - n * afont8x6.w; if (x < 0) x = 0;
+    x = s->debug_mode ? (128 - n * afont8x6.w) : 0; if (x < 0) x = 0;
     OLED_PrintASCIIString((uint8_t)x, afont8x6.h * 3, line, &afont8x6, OLED_COLOR_NORMAL);
 }
 
