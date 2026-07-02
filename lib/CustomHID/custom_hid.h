@@ -10,6 +10,7 @@
 // TinyUSB (only need tusb.h types here)
 #include "tusb.h"
 #include "hardware/watchdog.h"
+#include "wpm.h"
 
 // --------------------
 // usb_descriptors.h
@@ -278,12 +279,15 @@ typedef struct {
     uint8_t base_layer;      // current base layer (set by TO)
     uint8_t active_layer;    // top-most active layer (MO/TG/MT resolved)
     uint8_t stack_size;      // number of active layer entries (MO/TG/MT holds)
+    uint16_t wpm;            // current words per minute
 } KbdState;
 
 // Return the latest keyboard state snapshot
 void keymap_get_kbd_state(KbdState* out);
 // Monotonic version that increments when state changes (layers/NKRO)
 uint32_t keymap_get_kbd_state_version(void);
+// Force keyboard state update (used for periodic WPM refresh)
+void kbd_state_update(bool force);
 
 // Layer names for display
 extern const char* layer_names[MAX_LAYERS];

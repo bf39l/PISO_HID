@@ -93,6 +93,7 @@ void kbd_state_update(bool force)
         .base_layer   = layer_state.base_layer,
         .active_layer = keymap_get_active_layer(),
         .stack_size   = layer_state.size,
+        .wpm          = wpm_get(),
     };
     if (force || memcmp(&s, &g_kbd_state, sizeof(KbdState)) != 0) {
         g_kbd_state = s;
@@ -116,6 +117,7 @@ uint32_t keymap_get_kbd_state_version(void)
 
 void keymap_init(void)
 {
+    wpm_init();
     // Initialize HID report buffers
     // Force first frame to send by initializing prev to different values
     memset(prev6, 0xFF, sizeof(prev6));
@@ -701,6 +703,8 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
         key_state[col].pressed = pressed;
         key_state[col].row = row;
         key_state[col].cached_kc = kc;
+        if (pressed && kc >= KC_A && kc <= KC_0)
+            wpm_record_keystroke();
         if (IS_MODIFIER(kc))
             report.modifiers |= (1u << (kc - KC_LCTRL));
         else

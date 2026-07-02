@@ -201,16 +201,11 @@ uint8_t const * tud_hid_descriptor_report_cb(uint8_t instance)
 void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type,
                            uint8_t const* buffer, uint16_t bufsize) 
 {
-    // intentionally left empty; not handling host-to-device reports
     (void) instance;
     (void) report_id;
     (void) report_type;
     (void) buffer;
     (void) bufsize;
-    // char dbg[64];
-    // snprintf(dbg, sizeof(dbg), "tud_hid_set_report_cb: instance=%u, report_id=%u, type=%u, len=%u\r\n",
-    //          instance, report_id, report_type, bufsize);
-    // CDC_SendString(dbg);
 }
 
 uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type,

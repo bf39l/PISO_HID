@@ -14,6 +14,12 @@ typedef enum {
   OLED_COLOR_REVERSED    // 反色模式 白底黑字
 } OLED_ColorMode;
 
+#define OLED_DISPLAY_COLS 128
+#define OLED_DISPLAY_ROWS 64
+#define OLED_DISPLAY_PAGES 8
+
+extern uint8_t OLED_GRAM[OLED_DISPLAY_PAGES][OLED_DISPLAY_COLS];
+
 void OLED_Init(i2c_inst_t* i2cInst, uint8_t colOffset);
 void OLED_DisPlay_On();
 void OLED_DisPlay_Off();
@@ -21,6 +27,7 @@ void OLED_DisPlay_Off();
 void OLED_NewFrame();
 void OLED_ShowFrame();
 void OLED_SetPixel(uint8_t x, uint8_t y, OLED_ColorMode color);
+void OLED_DrawBitmap(uint8_t x, uint8_t y, uint8_t width, uint8_t height, const uint8_t *bitmap, OLED_ColorMode color);
 
 void OLED_DrawLine(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, OLED_ColorMode color);
 void OLED_DrawRectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h, OLED_ColorMode color);

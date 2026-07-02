@@ -35,11 +35,13 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(PISO_HID 
+add_executable(PISO_HID
     src/main.c
     src/task_oled.c
     src/task_scan.c
     src/task_usb.c
+    src/wpm.c
+    src/bongo_cat_bitmap.c
 )
 
 pico_set_program_name(PISO_HID "PISO_HID")

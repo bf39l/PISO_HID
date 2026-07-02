@@ -209,6 +209,36 @@ void OLED_SetPixel(uint8_t x, uint8_t y, OLED_ColorMode color)
 }
 
 /**
+ * @brief 在指定区域绘制一个紧凑的 1-bit 位图
+ * @param x 起点列
+ * @param y 起点行
+ * @param width 位图宽度
+ * @param height 位图高度
+ * @param bitmap 以每行按字节打包的位图数据
+ * @param color 绘制颜色
+ */
+void OLED_DrawBitmap(uint8_t x, uint8_t y, uint8_t width, uint8_t height, const uint8_t *bitmap, OLED_ColorMode color)
+{
+  if (bitmap == NULL || width == 0 || height == 0)
+    return;
+
+  const uint8_t row_bytes = (uint8_t)((width + 7u) >> 3u);
+  for (uint8_t row = 0; row < height; ++row)
+  {
+    for (uint8_t col = 0; col < width; ++col)
+    {
+      const uint8_t byte_index = (uint8_t)(col >> 3u);
+      const uint8_t bit_index = (uint8_t)(7u - (col & 0x07u));
+      const uint8_t bit = (uint8_t)((bitmap[row * row_bytes + byte_index] >> bit_index) & 0x01u);
+      if (bit)
+      {
+        OLED_SetPixel(x + col, y + row, color);
+      }
+    }
+  }
+}
+
+/**
  * @brief 设置显存中一字节数据的某几位
  * @param page 页地址
  * @param column 列地址
