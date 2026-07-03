@@ -64,6 +64,8 @@ add_library(CUSTOM_HID
 )
 target_include_directories(CUSTOM_HID PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/lib/CustomHID/ # tusb_config.h and etc...
+    ${CMAKE_CURRENT_LIST_DIR}/src/           # os_detection.h
+    ${PICO_TINYUSB_PATH}/src                 # tusb.h
 )
 target_link_libraries(CUSTOM_HID
     pico_stdlib
