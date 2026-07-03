@@ -31,7 +31,7 @@ include(pico_sdk_import.cmake)
 project(PISO_HID C CXX ASM)
 
 # Use vendored TinyUSB with OS detection hook (must be before pico_sdk_init)
-set(PICO_TINYUSB_PATH ${CMAKE_CURRENT_LIST_DIR}/lib/TinyUSB)
+set(PICO_TINYUSB_PATH ${CMAKE_CURRENT_LIST_DIR}/lib/tinyusb)
 
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()

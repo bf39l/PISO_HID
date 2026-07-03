@@ -15,7 +15,7 @@ Highlights
 Repository layout
 - src/ … app tasks (scan, USB, OLED), common.h
 - lib/CustomHID/ … HID, keymap, descriptors, functional keys
-- lib/TinyUSB/ … vendored TinyUSB with host OS detection hook
+- lib/tinyusb/ … vendored TinyUSB with host OS detection hook
 - lib/FreeRTOS-Kernel/ … submodule (upstream FreeRTOS)
 - lib/OLED_SSD1306/ … driver (if used)
 - .github/workflows/build.yml … CI that builds UF2 and releases
@@ -87,7 +87,7 @@ Config notes
 
 ### Vendored TinyUSB with Host OS Detection
 
-This project vendors [TinyUSB 0.21.0](https://github.com/hathach/tinyusb) under `lib/TinyUSB/` rather than using the SDK copy. The vendored copy has a minimal two-line patch to `src/device/usbd.c` that enables host OS detection on plug-in.
+This project vendors [TinyUSB 0.21.0](https://github.com/hathach/tinyusb) under `lib/tinyusb/` rather than using the SDK copy. The vendored copy has a minimal two-line patch to `src/device/usbd.c` that enables host OS detection on plug-in.
 
 **Why vendor instead of patching the SDK?**
 
@@ -101,7 +101,7 @@ Different host OSes (Windows, macOS, Linux) request USB device descriptors with 
 - **Windows**: requests `0xFF` then `0x02` (2 bytes) in a specific pattern
 - **macOS**: requests `0x04` (4 bytes) followed by `0xFF`
 
-**The hack — two lines in `lib/TinyUSB/src/device/usbd.c`**
+**The hack — two lines in `lib/tinyusb/src/device/usbd.c`**
 
 > **Line 88** — weak callback stub (fires for every `GET_DESCRIPTOR` request):
 ```c
@@ -130,9 +130,9 @@ curl -sL https://github.com/hathach/tinyusb/archive/refs/tags/<VERSION>.tar.gz -
 tar xzf tinyusb.tar.gz
 
 # Replace vendored sources, preserving our patch
-rm -rf lib/TinyUSB/src lib/TinyUSB/hw
-cp -r tinyusb-<VERSION>/src lib/TinyUSB/
-cp -r tinyusb-<VERSION>/hw lib/TinyUSB/
+rm -rf lib/tinyusb/src lib/tinyusb/hw
+cp -r tinyusb-<VERSION>/src lib/tinyusb/
+cp -r tinyusb-<VERSION>/hw lib/tinyusb/
 
 # Re-apply the OS detection hook in src/device/usbd.c
 # (see existing patch for reference)
