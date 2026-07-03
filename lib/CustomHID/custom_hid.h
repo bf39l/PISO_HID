@@ -239,6 +239,53 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 #define CH_MODS(code)      ( (uint8_t)( ((uint32_t)(code) >> 8) & 0xFF ) )
 #define CH_KEY(code)       ( (uint8_t)( ((uint32_t)(code)     ) & 0xFF ) )
 
+// -----------------------------
+// OS-Aware Key: resolve to different keycode based on detected host OS
+// Encoding layout (32-bit):
+// [ SAFE_RANGE + 0xC0000 ] | [ RESERVED(8) ] | [ INDEX(8) ]
+// Index refers to entry in osk_registry[] (keymap_osk.c).
+// Each registry entry has 3 keycodes: [LINUX, WINDOWS, MACOS].
+// If host OS is undetected, falls back to LINUX.
+//
+// How to use:
+//   keymap.c:        OSK(OSK_FWORD)
+//   custom_hid.h:    enum osk_idx_t { OSK_FWORD = 0, ... }
+//   keymap_osk.c:    registry entry at index 0
+//
+// To add a new OSK entry:
+//   1. Add name to enum osk_idx_t below
+//   2. Add matching entry to osk_registry[] in keymap_osk.c
+#define OSK_TAG_BASE       (0xC0000)
+#define OSK_PREFIX         ( (uint32_t)(SAFE_RANGE + OSK_TAG_BASE) )
+
+#define IS_OSK(code)       ( (((uint32_t)(code) >> 16) & 0xFF) == 0x0D )
+#define OSK_IDX(code)      ( (uint8_t)((code) & 0xFF) )
+
+// OS-aware key registry entry: one keycode per OS variant
+typedef struct {
+    const char* name;           // Human-readable label
+    uint32_t   keycode_lnx;     // Linux (also used as undetected fallback)
+    uint32_t   keycode_win;     // Windows
+    uint32_t   keycode_mac;     // macOS
+} osk_entry_t;
+
+// OSK index mapping — order must match osk_registry[] in keymap_osk.c
+typedef enum {
+    OSK_FWORD  = 0,
+    OSK_BWORD  = 1,
+    OSK_FLINE  = 2,
+    OSK_BLINE  = 3,
+} osk_idx_t;
+
+// OSK(name) — name is an enum token (e.g. OSK(OSK_FWORD))
+#define OSK(name)         ( (uint32_t)(OSK_PREFIX) | ((uint32_t)((name) & 0xFF)) )
+
+// Resolve OSK index to actual keycode for current host OS
+uint32_t osk_resolve(uint8_t idx);
+
+extern const osk_entry_t osk_registry[];
+extern const uint8_t OSK_REGISTRY_COUNT;
+
 // ==================== EXISTING KEYMAP DECLARATIONS ====================
 
 #define MAX_LAYERS 4

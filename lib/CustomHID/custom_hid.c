@@ -690,12 +690,24 @@ KeyReport keymap_get_keycode(uint8_t row, uint8_t col, bool pressed)
         return report;
     }
 
+    // Handle OS-aware key: resolve to OS-specific keycode
+    if (IS_OSK(kc))
+    {
+        uint8_t osk_idx = OSK_IDX(kc);
+        kc = osk_resolve(osk_idx);
+
+        const char* osk_name = (osk_idx < OSK_REGISTRY_COUNT) ? osk_registry[osk_idx].name : "????";
+        char osk_buf[64];
+        snprintf(osk_buf, sizeof(osk_buf), "OSK(%u)[%s]->0x%08X\n", (unsigned)osk_idx, osk_name, (unsigned)kc);
+        CDC_SendString(osk_buf);
+    }
+
     // Handle KC_TRNS: fall through to base layer
     if (kc == KC_TRNS)
     {
         // Look up the keycode from the base layer
         uint32_t base_kc = keymaps[layer_state.base_layer][row][col];
-        
+
         // Recursively resolve in case base layer also has KC_TRNS
         // (though that would be unusual for the base layer)
         if (base_kc != KC_TRNS && base_kc != KC_NO)
