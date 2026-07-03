@@ -1,4 +1,5 @@
 #include "custom_hid.h"
+#include "os_detection.h"
 
 // TinyUSB BSP forward declaration (avoid pulling board.h into public headers)
 void board_init(void);
@@ -87,6 +88,15 @@ static uint32_t g_kbd_state_ver = 0;
 
 void kbd_state_update(bool force)
 {
+    os_variant_t os = detected_host_os();
+    kbd_os_variant_t kbd_os;
+    switch (os) {
+        case OS_WINDOWS: kbd_os = KBD_OS_WINDOWS; break;
+        case OS_MACOS:   kbd_os = KBD_OS_MACOS; break;
+        case OS_LINUX:   kbd_os = KBD_OS_LINUX; break;
+        default:         kbd_os = KBD_OS_UNSURE; break;
+    }
+
     KbdState s = {
         .nkro_enabled = nkro_enabled,
         .debug_mode   = debug_mode,
@@ -94,6 +104,7 @@ void kbd_state_update(bool force)
         .active_layer = keymap_get_active_layer(),
         .stack_size   = layer_state.size,
         .wpm          = wpm_get(),
+        .host_os      = kbd_os,
     };
     if (force || memcmp(&s, &g_kbd_state, sizeof(KbdState)) != 0) {
         g_kbd_state = s;

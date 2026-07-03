@@ -273,6 +273,13 @@ extern bool debug_mode;
 // -----------------------------
 // Public keyboard state snapshot (for OLED/status)
 // -----------------------------
+typedef enum {
+    KBD_OS_UNSURE,
+    KBD_OS_LINUX,
+    KBD_OS_WINDOWS,
+    KBD_OS_MACOS,
+} kbd_os_variant_t;
+
 typedef struct {
     bool nkro_enabled;       // true = NKRO, false = 6KRO
     bool debug_mode;         // true = debug shift bits displayed
@@ -280,6 +287,7 @@ typedef struct {
     uint8_t active_layer;    // top-most active layer (MO/TG/MT resolved)
     uint8_t stack_size;      // number of active layer entries (MO/TG/MT holds)
     uint16_t wpm;            // current words per minute
+    kbd_os_variant_t host_os; // detected host OS
 } KbdState;
 
 // Return the latest keyboard state snapshot

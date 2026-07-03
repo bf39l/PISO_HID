@@ -30,6 +30,9 @@ include(pico_sdk_import.cmake)
 
 project(PISO_HID C CXX ASM)
 
+# Use vendored TinyUSB with OS detection hook (must be before pico_sdk_init)
+set(PICO_TINYUSB_PATH ${CMAKE_CURRENT_LIST_DIR}/lib/tinyusb)
+
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
@@ -42,6 +45,7 @@ add_executable(PISO_HID
     src/task_usb.c
     src/wpm.c
     src/bongo_cat_bitmap.c
+    src/os_detection.c
 )
 
 pico_set_program_name(PISO_HID "PISO_HID")
@@ -60,6 +64,8 @@ add_library(CUSTOM_HID
 )
 target_include_directories(CUSTOM_HID PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/lib/CustomHID/ # tusb_config.h and etc...
+    ${CMAKE_CURRENT_LIST_DIR}/src/           # os_detection.h
+    ${PICO_TINYUSB_PATH}/src                 # tusb.h
 )
 target_link_libraries(CUSTOM_HID
     pico_stdlib

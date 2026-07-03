@@ -15,6 +15,7 @@ Highlights
 Repository layout
 - src/ … app tasks (scan, USB, OLED), common.h
 - lib/CustomHID/ … HID, keymap, descriptors, functional keys
+- lib/tinyusb/ … vendored TinyUSB with host OS detection hook
 - lib/FreeRTOS-Kernel/ … submodule (upstream FreeRTOS)
 - lib/OLED_SSD1306/ … driver (if used)
 - .github/workflows/build.yml … CI that builds UF2 and releases
@@ -83,6 +84,59 @@ Troubleshooting
 Config notes
 - MT_TAP_TIMEOUT_MS controls tap‑vs‑hold for MT keys and influences OLED update cadence.
 - FreeRTOS hooks: vApplicationMallocFailedHook / vApplicationStackOverflowHook must be provided or disabled.
+
+### Vendored TinyUSB with Host OS Detection
+
+This project vendors [TinyUSB 0.21.0](https://github.com/hathach/tinyusb) under `lib/tinyusb/` rather than using the SDK copy. The vendored copy has a minimal two-line patch to `src/device/usbd.c` that enables host OS detection on plug-in.
+
+**Why vendor instead of patching the SDK?**
+
+The Pico SDK's `PICO_TINYUSB_PATH` variable lets you override the entire TinyUSB tree. There's no supported way to override a single source file, so we vendor the full tree and set `PICO_TINYUSB_PATH` in `CMakeLists.txt` before `pico_sdk_init()`. This keeps the project self-contained and avoids modifying SDK files.
+
+**How the OS detection works**
+
+Different host OSes (Windows, macOS, Linux) request USB device descriptors with different `wLength` values during enumeration. By intercepting these values, we can fingerprint the connected host:
+
+- **Linux**: requests `0xFF` (255 bytes) for every descriptor
+- **Windows**: requests `0xFF` then `0x02` (2 bytes) in a specific pattern
+- **macOS**: requests `0x04` (4 bytes) followed by `0xFF`
+
+**The hack — two lines in `lib/tinyusb/src/device/usbd.c`**
+
+> **Line 88** — weak callback stub (fires for every `GET_DESCRIPTOR` request):
+```c
+TU_ATTR_WEAK void tud_os_detect_wlength_cb(uint16_t wlength) {
+  (void) wlength;
+}
+```
+
+> **Line 1313** — inside `process_get_descriptor()`, before the descriptor-type switch:
+```c
+tud_os_detect_wlength_cb(p_request->wLength);
+```
+
+Our `src/os_detection.c` defines a strong override of `tud_os_detect_wlength_cb()`, collecting the wLength values and matching them against known patterns. The detected OS is displayed on the OLED (`LNX`, `MAC`, or `WIN`).
+
+**Why isn't this in upstream TinyUSB?**
+
+wLength fingerprinting is a heuristic, not a USB specification feature. The values are incidental behavior of each OS's USB stack and can change with updates. Upstream TinyUSB stays spec-compliant and minimal. This approach is adapted from [QMK's OS detection](https://github.com/qmk/qmk_firmware), which uses the same technique for keyboards that need OS-aware behavior.
+
+**Updating TinyUSB**
+
+To update to a newer TinyUSB version:
+```bash
+# Download latest release
+curl -sL https://github.com/hathach/tinyusb/archive/refs/tags/<VERSION>.tar.gz -o tinyusb.tar.gz
+tar xzf tinyusb.tar.gz
+
+# Replace vendored sources, preserving our patch
+rm -rf lib/tinyusb/src lib/tinyusb/hw
+cp -r tinyusb-<VERSION>/src lib/tinyusb/
+cp -r tinyusb-<VERSION>/hw lib/tinyusb/
+
+# Re-apply the OS detection hook in src/device/usbd.c
+# (see existing patch for reference)
+```
 
 ### FreeRTOS
 

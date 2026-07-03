@@ -1,5 +1,6 @@
 #include "common.h"
 #include "bongo_cat_bitmap.h"
+#include <string.h>
 
 static void draw_kbd_state(const KbdState *s)
 {
@@ -20,6 +21,18 @@ static void draw_kbd_state(const KbdState *s)
     n = snprintf(line, sizeof(line), "L%d/%d (%d)", s->base_layer, s->active_layer, s->stack_size);
     x = s->debug_mode ? (128 - n * afont8x6.w) : 0; if (x < 0) x = 0;
     OLED_PrintASCIIString((uint8_t)x, afont8x6.h, line, &afont8x6, OLED_COLOR_NORMAL);
+
+    // Host OS indicator (top-right, line below PISO, above bf39L)
+    if (!s->debug_mode) {
+        char os_str[4] = "???";
+        switch (s->host_os) {
+            case KBD_OS_WINDOWS: strcpy(os_str, "WIN"); break;
+            case KBD_OS_MACOS:   strcpy(os_str, "MAC"); break;
+            case KBD_OS_LINUX:   strcpy(os_str, "LNX"); break;
+            default: break;
+        }
+        OLED_PrintASCIIString(128 - 3 * afont8x6.w, afont8x6.h, os_str, &afont8x6, OLED_COLOR_NORMAL);
+    }
 
     // Layer name
     if (s->active_layer < MAX_LAYERS) {
