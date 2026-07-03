@@ -73,17 +73,7 @@ Key features overview
   - Renders state + latest shift‑register snapshot in one frame to avoid flicker
 
 Troubleshooting
-- fatal error: tusb_config.h: No such file or directory
-  - Ensure the include path adds lib/CustomHID, not the file itself:
-    - target_include_directories(CUSTOM_HID PUBLIC ${CMAKE_CURRENT_LIST_DIR}/lib/CustomHID)
-- implicit declaration errors when splitting files
-  - Add a forward declaration in the .c file or a private header; don’t rely on implicit prototypes.
-- “Resource not accessible by integration” on release
-  - Grant Actions “Read and write” permissions or use a PAT secret in the release step.
-
-Config notes
-- MT_TAP_TIMEOUT_MS controls tap‑vs‑hold for MT keys and influences OLED update cadence.
-- FreeRTOS hooks: vApplicationMallocFailedHook / vApplicationStackOverflowHook must be provided or disabled.
+- See [docs/common_errors.md](docs/common_errors.md) for build errors, CI/release issues, and config notes.
 
 ### Vendored TinyUSB with Host OS Detection
 
@@ -149,38 +139,16 @@ git submodule add https://github.com/FreeRTOS/FreeRTOS-Kernel lib/FreeRTOS-Kerne
 mkdir -p include/FreeRTOS
 ```
 
-#### Common error
-```sh
-/Users/bo/.pico-sdk/toolchain/14_2_Rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/bin/ld: CMakeFiles/PISO_HID.dir/lib/FreeRTOS-Kernel/portable/MemMang/heap_4.c.o: in function `pvPortMalloc':
-/Users/bo/sandbox/RaspberryPiPico/SDK/PISO_HID/lib/FreeRTOS-Kernel/portable/MemMang/heap_4.c:340:(.text.pvPortMalloc+0x82): undefined reference to `vApplicationMallocFailedHook'
-collect2: error: ld returned 1 exit status
-```
-
-```c
-// add this function to your source code
-#include <FreeRTOS.h>
-void vApplicationMallocFailedHook(void)
-{
-    // This runs if pvPortMalloc() fails
-    printf("ERROR: FreeRTOS malloc failed!\n");
-    portDISABLE_INTERRUPTS();
-    for(;;); // Halt
-}
-void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
-{
-    // This runs if Stack overflow
-    printf("ERROR: Stack overflow!\n");
-    portDISABLE_INTERRUPTS();
-    for(;;); // Halt
-}
-// or 
-void vApplicationMallocFailedHook(void) { panic("Malloc failed!"); }
-void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) { panic("Stack overflow!"); }
-
-// or Disable the hook
-// FreeRTOSConfig.h
-#define configUSE_MALLOC_FAILED_HOOK 0
-```
+For common FreeRTOS hook errors, see [docs/common_errors.md](docs/common_errors.md).
 
 License
 -
+
+Acknowledgments
+- This project was developed with the assistance of **Qwen 3.6** (local LLM) and **GitHub Copilot**.
+- Original idea of a keyboard using PISO shift registers from [HelloWord-Keyboard](https://github.com/peng-zhihui/HelloWord-Keyboard).
+- OLED SSD1306 driver derived from [led.baud-dance.com](https://led.baud-dance.com).
+- Bongo Cat animation ported from [OLED-BongoCat-Revision](https://github.com/pedker/OLED-BongoCat-Revision).
+- Powered by [FreeRTOS](https://github.com/FreeRTOS/FreeRTOS-Kernel).
+- USB stack via [TinyUSB](https://github.com/hathach/tinyusb).
+- OS detection approach adapted from [QMK](https://github.com/qmk/qmk_firmware).
