@@ -59,6 +59,7 @@ pico_enable_stdio_usb(PISO_HID 0)
 add_library(CUSTOM_HID
     lib/CustomHID/usb_descriptors.c
     lib/CustomHID/keymap.c
+    lib/CustomHID/keymap_osk.c
     lib/CustomHID/functional_key_handler.c
     lib/CustomHID/custom_hid.c
 )
