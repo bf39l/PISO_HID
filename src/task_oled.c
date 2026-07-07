@@ -2,6 +2,9 @@
 #include "bongo_cat_bitmap.h"
 #include <string.h>
 
+#define OLED_SPLASH_DURATION_MS 3000UL
+#define OLED_IDLE_TIMEOUT_MS (15UL * 60UL * 1000UL)
+
 static void draw_kbd_state(const KbdState *s)
 {
     char line[32];
@@ -102,15 +105,21 @@ static void draw_splash(void)
 
 void OLED_Task(void *pvParameters)
 {
+    (void)pvParameters;
+
     OLED_Init(i2c0, 2);
 
-    // Show splash initially
+    // Show splash initially, then transition to live render
     draw_splash();
 
     ShiftRegister64 recv;
     ShiftRegister64 last_recv = (ShiftRegister64){0};
     bool have_recv = false;
     KbdState kbd_state = (KbdState){0};
+    bool display_on = true;
+    bool splash_visible = true;
+    TickType_t splash_deadline = xTaskGetTickCount() + pdMS_TO_TICKS(OLED_SPLASH_DURATION_MS);
+    TickType_t last_activity_tick = xTaskGetTickCount();
 
     for (;;) {
         // Drain to the latest keyboard state
@@ -118,15 +127,51 @@ void OLED_Task(void *pvParameters)
         while (xQueueReceive(xKbdStateQueue, &kbd_state, 0) == pdTRUE) {
             kbd_state_changed = true;
         }
-        // If only state changed, redraw using the last snapshot to keep alignment
-        if (kbd_state_changed && have_recv) {
+
+        bool activity_seen = false;
+        while (xQueueReceive(xShiftRegisterOutputQueue_OLED, &recv, 0) == pdTRUE) {
+            last_recv = recv;
+            have_recv = true;
+            activity_seen = true;
+        }
+
+        if (activity_seen) {
+            last_activity_tick = xTaskGetTickCount();
+            if (!display_on) {
+                OLED_DisPlay_On();
+                display_on = true;
+            }
+            if (!splash_visible) {
+                render_main(&kbd_state, &last_recv);
+            }
+        } else if (kbd_state_changed && display_on && !splash_visible) {
             render_main(&kbd_state, &last_recv);
         }
 
-        // Short wait for SR update; keep servicing KbdState frequently
-        if (xQueueReceive(xShiftRegisterOutputQueue_OLED, &recv, pdMS_TO_TICKS(5)) == pdTRUE) {
-            last_recv = recv; have_recv = true;
+        if (splash_visible && xTaskGetTickCount() >= splash_deadline) {
+            splash_visible = false;
             render_main(&kbd_state, &last_recv);
+        }
+
+        if (display_on && !splash_visible &&
+            (xTaskGetTickCount() - last_activity_tick) >= pdMS_TO_TICKS(OLED_IDLE_TIMEOUT_MS)) {
+            OLED_DisPlay_Off();
+            display_on = false;
+        }
+
+        // Short wait for SR update; keep servicing KbdState frequently
+        if (xQueueReceive(xShiftRegisterOutputQueue_OLED, &recv,
+                          display_on ? pdMS_TO_TICKS(5) : pdMS_TO_TICKS(1000)) == pdTRUE) {
+            last_recv = recv;
+            have_recv = true;
+            last_activity_tick = xTaskGetTickCount();
+            if (!display_on) {
+                OLED_DisPlay_On();
+                display_on = true;
+            }
+            if (!splash_visible) {
+                render_main(&kbd_state, &last_recv);
+            }
         }
     }
 }
