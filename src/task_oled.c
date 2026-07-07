@@ -137,13 +137,12 @@ void OLED_Task(void *pvParameters)
 
         if (activity_seen) {
             last_activity_tick = xTaskGetTickCount();
+            splash_visible = false;
             if (!display_on) {
                 OLED_DisPlay_On();
                 display_on = true;
             }
-            if (!splash_visible) {
-                render_main(&kbd_state, &last_recv);
-            }
+            render_main(&kbd_state, &last_recv);
         } else if (kbd_state_changed && display_on && !splash_visible) {
             render_main(&kbd_state, &last_recv);
         }
@@ -165,13 +164,12 @@ void OLED_Task(void *pvParameters)
             last_recv = recv;
             have_recv = true;
             last_activity_tick = xTaskGetTickCount();
+            splash_visible = false;
             if (!display_on) {
                 OLED_DisPlay_On();
                 display_on = true;
             }
-            if (!splash_visible) {
-                render_main(&kbd_state, &last_recv);
-            }
+            render_main(&kbd_state, &last_recv);
         }
     }
 }
