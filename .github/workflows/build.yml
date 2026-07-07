@@ -66,6 +66,7 @@ jobs:
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DPICO_SDK_FETCH_FROM_GIT=1 \
+            -DPICOTOOL_FORCE_FETCH_FROM_GIT=1 \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
