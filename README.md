@@ -45,6 +45,11 @@ CI artifacts and releases
 - Tag a version to publish a GitHub Release with firmware:
   - git tag -a v0.0.1 -m "v0.0.1"
   - git push origin v0.0.1
+- Re-push an existing tag to trigger a fresh CI build (e.g. after fixing a build error):
+  - git tag -d v0.0.5
+  - git push origin :refs/tags/v0.0.5
+  - git tag v0.0.5
+  - git push origin v0.0.5
 - Ensure GitHub Actions workflow permissions: Settings → Actions → Workflow permissions → Read and write.
 
 Submodule tips (FreeRTOS-Kernel)
